@@ -1,0 +1,14 @@
+{
+    "name": "@types/highlight.js",
+    "version": "10.1.0",
+    "typings": null,
+    "description": "Stub TypeScript definitions entry for highlight.js, which provides its own types definitions",
+    "main": "",
+    "scripts": {},
+    "author": "",
+    "repository": "https://github.com/highlightjs/highlight.js",
+    "license": "MIT",
+    "dependencies": {
+        "highlight.js": "*"
+    }
+}

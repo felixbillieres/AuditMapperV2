@@ -1,0 +1,65 @@
+{
+    "name": "@types/react-color",
+    "version": "3.0.13",
+    "description": "TypeScript definitions for react-color",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-color",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": " Karol Janyst",
+            "githubUsername": "LKay",
+            "url": "https://github.com/LKay"
+        },
+        {
+            "name": "Marks Polakovs",
+            "githubUsername": "markspolakovs",
+            "url": "https://github.com/markspolakovs"
+        },
+        {
+            "name": "Matthieu Montaudouin",
+            "githubUsername": "mntdn",
+            "url": "https://github.com/mntdn"
+        },
+        {
+            "name": "Nokogiri",
+            "githubUsername": "nkgrnkgr",
+            "url": "https://github.com/nkgrnkgr"
+        },
+        {
+            "name": "0815Strohhut",
+            "githubUsername": "0815Strohhut",
+            "url": "https://github.com/0815Strohhut"
+        },
+        {
+            "name": "Daniel Fürst",
+            "githubUsername": "dnlfrst",
+            "url": "https://github.com/dnlfrst"
+        },
+        {
+            "name": "Erick Tamayo",
+            "githubUsername": "ericktamayo",
+            "url": "https://github.com/ericktamayo"
+        },
+        {
+            "name": "Alexander P. Cerutti",
+            "githubUsername": "alexandercerutti",
+            "url": "https://github.com/alexandercerutti"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/react-color"
+    },
+    "scripts": {},
+    "dependencies": {
+        "@types/reactcss": "*"
+    },
+    "peerDependencies": {
+        "@types/react": "*"
+    },
+    "typesPublisherContentHash": "0597a3f2c739cceea22a35a44cd109248ca4d3308f2babff82209400522c03a1",
+    "typeScriptVersion": "5.0"
+}
