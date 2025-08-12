@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InfoModal from '@/components/ui/InfoModal';
+import { useHostStore } from '@/stores/hostStore';
 
 type QuickType = 'users' | 'hashes' | 'passwords' | 'domains' | 'ips' | 'emails';
 type AdvancedType = 'credentials' | 'kerberos' | 'secrets' | 'machineAccounts' | 'services' | 'ports';
@@ -48,6 +49,8 @@ const GrepMasterPage: React.FC = () => {
   const [format, setFormat] = useState<'list'|'hashcat'|'john'|'csv'|'json'>('list');
   const [expanded, setExpanded] = useState<{ input: boolean; quick: boolean; results: boolean }>({ input: true, quick: true, results: true });
   const [about, setAbout] = useState(false);
+  const { hosts, updateHost } = useHostStore();
+  const [targetHostId, setTargetHostId] = useState<string>('');
 
   const lines = useMemo(() => raw.split('\n').filter(l => l.trim()).length, [raw]);
   const chars = useMemo(() => raw.length, [raw]);
@@ -320,6 +323,40 @@ const GrepMasterPage: React.FC = () => {
               </CardHeader>
               {expanded.results && (
               <CardContent className="space-y-3">
+                {/* Cible d'injection */}
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-slate-300">Cibler un host</label>
+                  <Select value={targetHostId || '__none__'} onValueChange={(v)=> setTargetHostId(v === '__none__' ? '' : v)}>
+                    <SelectTrigger className="h-8 bg-slate-700 border-slate-600 text-slate-100">
+                      <SelectValue placeholder="Sélectionner un host" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-600 max-h-64 overflow-y-auto">
+                      <SelectItem value="__none__">Aucun</SelectItem>
+                      {Object.values(hosts).map(h => (
+                        <SelectItem key={h.id} value={h.id}>{h.ip} — {h.hostname || 'Sans nom'}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    disabled={!targetHostId || results.length === 0}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => {
+                      if (!targetHostId || results.length === 0 || !currentType) return;
+                      const host = Object.values(hosts).find(h => h.id === targetHostId);
+                      if (!host) return;
+                      if (currentType === 'users') {
+                        updateHost(host.id, { usernames: Array.from(new Set([...(host.usernames||[]), ...results])) });
+                      } else if (currentType === 'passwords') {
+                        updateHost(host.id, { passwords: Array.from(new Set([...(host.passwords||[]), ...results])) });
+                      } else if (currentType === 'hashes' || currentType === 'credentials') {
+                        const hashes = currentType === 'credentials' ? results.map(r => r.split(':').pop() || '').filter(Boolean) : results;
+                        updateHost(host.id, { hashes: Array.from(new Set([...(host.hashes||[]), ...hashes])) });
+                      }
+                    }}
+                  >
+                    Injecter dans l'hôte
+                  </Button>
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="text-slate-300 text-sm">Type: <span className="font-medium text-slate-100">{currentType ? typeNames[currentType] : '—'}</span></div>
                   <div className="text-slate-300 text-sm">Total: <span className="font-medium text-slate-100">{results.length}</span></div>

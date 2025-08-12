@@ -11,7 +11,8 @@ import PrivescPage from '@/components/features/privesc/PrivescPage';
 import ADMRPage from '@/components/features/admr/ADMRPage';
 import GrepMasterPage from '@/components/features/grepmaster/GrepMasterPage';
 import ConfigGeneratorPage from '@/components/features/config-generator/ConfigGeneratorPage';
-import TemplateGeneratorPage from '@/components/features/template-generator/TemplateGeneratorPage';
+// import TemplateGeneratorPage from '@/components/features/template-generator/TemplateGeneratorPage';
+import HTBLabPage from '@/components/features/security-lab/HTBLabPage';
 // Removed AdKerberosCanvasPage import
 
 const App: React.FC = () => {
@@ -25,7 +26,8 @@ const App: React.FC = () => {
           </div>
         } />
         <Route path="/config-generator" element={<ConfigGeneratorPage />} />
-        <Route path="/template-generator" element={<TemplateGeneratorPage />} />
+        {/* <Route path="/template-generator" element={<TemplateGeneratorPage />} /> */}
+        <Route path="/htb-lab" element={<HTBLabPage />} />
         <Route path="/calendar" element={
           <div className="min-h-screen bg-dark-950 text-dark-100">
             <CalendarPage />

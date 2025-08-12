@@ -45,6 +45,7 @@
     "react-virtualized": "^9.22.5",
     "react-window": "^1.8.8",
     "reactflow": "^11.11.4",
+    "recharts": "^3.1.2",
     "rehype-highlight": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "sortablejs": "^1.15.2",

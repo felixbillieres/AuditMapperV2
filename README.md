@@ -24,7 +24,8 @@ Une suite d'outils modernes et professionnels pour les audits de sécurité et t
 ## 🎨 Design System
 
 ### Thème Sombre Moderne
-- **Couleurs** - Vert néon (#00ff88), magenta (#ff0080), cyan (#00ffff)
+- **Couleurs cyberpunk** - Vert néon (#00ff88), magenta (#ff0080), cyan (#00ffff)
+- **Interface terminal** - Style tech/hacker
 - **Animations fluides** - Transitions et micro-interactions
 - **Responsive design** - Mobile-first approach
 
@@ -225,6 +226,71 @@ Gestion d'état centralisée avec :
 - Agrégation de credentials
 - Statistiques en temps réel
 
+## 🔧 Configuration
+
+### Variables d'Environnement
+```bash
+# .env.local
+VITE_API_URL=http://localhost:3001
+VITE_APP_NAME=AuditMapper v2
+VITE_APP_VERSION=2.0.0
+```
+
+### Configuration Tailwind
+```javascript
+// tailwind.config.js
+module.exports = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        cyber: {
+          primary: '#00ff88',
+          secondary: '#ff0080',
+          accent: '#00ffff',
+          // ...
+        },
+        dark: {
+          50: '#f8fafc',
+          // ...
+          950: '#020617',
+        },
+      },
+    },
+  },
+}
+```
+
+## 🧪 Tests
+
+### Tests Unitaires
+```bash
+npm run test
+```
+
+### Tests E2E
+```bash
+npm run test:e2e
+```
+
+### Couverture de Code
+```bash
+npm run test:coverage
+```
+
+## 📚 Documentation
+
+### Storybook
+```bash
+npm run storybook
+```
+Accès : http://localhost:6006
+
+### Documentation API
+```bash
+npm run docs:api
+```
+
 ## 🤝 Contribution
 
 ### Guidelines
@@ -248,7 +314,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 - **Phreaks 2600** 
 - **Friends & Family**
-- **gr0bot & Bl4ckarch** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
+- **Amine & Evariste** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
 
 ## 📞 Support
 

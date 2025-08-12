@@ -45,7 +45,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
   isExpanded = false,
   onExpandChange,
 }) => {
-  const { updateHost, hosts } = useHostStore();
+  const { updateHost, hosts, categories } = useHostStore();
   // selectedHost vient maintenant directement des props
   const [activeTab, setActiveTab] = useState<'overview' | 'credentials' | 'exploitation' | 'notes' | 'screenshots'>('overview');
   const [showNotesEditor, setShowNotesEditor] = useState(false);
@@ -241,6 +241,23 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                       <SelectItem value="medium">Moyen</SelectItem>
                       <SelectItem value="high">Élevé</SelectItem>
                       <SelectItem value="critical">Critique</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-400">Catégorie</label>
+                  <Select
+                    value={selectedHost.category && selectedHost.category !== '' ? selectedHost.category : '__none__'}
+                    onValueChange={(value: string) => handleUpdateHost(selectedHost.id, { category: value === '__none__' ? '' : value })}
+                  >
+                    <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-slate-100">
+                      <SelectValue placeholder="Choisir une catégorie" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectItem value="__none__">Aucune</SelectItem>
+                      {(categories || []).map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
