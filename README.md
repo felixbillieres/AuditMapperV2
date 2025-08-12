@@ -166,6 +166,18 @@ npm run build-storybook  # Build Storybook
 - ✅ **Aperçu Markdown** - Rendu riche (GFM) avec mise en forme du code
 - ✅ **Téléchargement** - Export direct en `.md` et copie presse-papiers
 
+### File Transfer (Implémenté)
+- ✅ **One-liners** - Génération de commandes de transfert (HTTP/SMB/FTP/PowerShell, etc.)
+- ✅ **Encodages** - Options d’encodage et variantes cross-OS
+
+### Privesc Helper (Implémenté)
+- ✅ **Checklist interactive** - Techniques et suivi de progression
+- ✅ **Notes** - Ajouts de preuves et commandes
+
+### Live Report (Implémenté)
+- ✅ **Rapport en direct** - Rendu des éléments collectés, prêt pour export
+- ✅ **Sections dynamiques** - Vulns, credentials, captures
+
 ### Grep Master (Implémenté partiel)
 - ✅ **Parsing ciblé** - Extraction d'infos utiles depuis des outputs
 
@@ -176,7 +188,7 @@ npm run build-storybook  # Build Storybook
 - ✅ **Rendu Obsidian Canvas** - Chargement des `.canvas` en UI interactive
 - ✅ **Navigation** - Liens entre canvases, zoom/pan
 - ✅ **Markdown** - Rendu des blocs textes
-- ✅ **Crédits et sources**: merci à Amine et Evariste pour la carte Obsidian, inspirée par `OCD mindmaps` et `The Hacker Recipes`. Source originale: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
+- ✅ **Crédits et sources**: merci à gr0bot et bl4ckarch pour la carte Obsidian, inspirée par `OCD mindmaps` et `The Hacker Recipes`. Source originale: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
 
 ### Fonctionnalités à Implémenter
 - 🔄 **Pivot Master** - Générateur de commandes de pivoting
@@ -249,25 +261,6 @@ module.exports = {
 }
 ```
 
-## 🚀 Déploiement
-
-### Build de Production
-```bash
-npm run build
-```
-
-### Déploiement Vercel
-```bash
-npm install -g vercel
-vercel --prod
-```
-
-### Déploiement Netlify
-```bash
-npm run build
-# Upload du dossier dist/
-```
-
 ## 🧪 Tests
 
 ### Tests Unitaires
@@ -319,20 +312,15 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 ## 🙏 Remerciements
 
-- **Elliot Belt** - Développeur original d'AuditMapper
-- **Phreaks 2600** - Communauté de sécurité
-- **React Team** - Framework exceptionnel
-- **Tailwind CSS** - Framework CSS utilitaire
-- **Zustand** - State management simple et efficace
- - **Amine & Evariste** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
+- **Phreaks 2600** 
+- **Friends & Family**
+- **Amine & Evariste** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
 
 ## 📞 Support
 
-- **Issues** : [GitHub Issues](https://github.com/your-repo/issues)
-- **Discussions** : [GitHub Discussions](https://github.com/your-repo/discussions)
-- **Email** : support@auditmapper.com
+- **Email** : felix.billieres@ecole2600.com
 
 ---
 
 **AuditMapper v2** - Security Assessment Suite  
-*Made with ❤️ by the cybersecurity community*
+*Made with ❤️ by Elliot Belt*
