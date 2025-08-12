@@ -248,7 +248,7 @@ Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
 - **Phreaks 2600** 
 - **Friends & Family**
-- **Amine & Evariste** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
+- **gr0bot & Bl4ckarch** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
 
 ## 📞 Support
 
