@@ -780,123 +780,6 @@ export const CalendarPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Timer configuration (collapsible to save space) */}
-        <Card className="border-slate-700 bg-slate-800">
-          <CardHeader>
-            <CardTitle className="text-slate-100 flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-blue-400" />
-                Configuration du Timer
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-300">
-                  {timerCfg.days > 0 || timerCfg.hours > 0 || timerCfg.minutes > 0
-                    ? `Prêt (${timerCfg.days ? `${timerCfg.days}j ` : ''}${timerCfg.hours ? `${timerCfg.hours}h ` : ''}${
-                        timerCfg.minutes ? `${timerCfg.minutes}min` : ''
-                      })`
-                    : 'Prêt'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowTimerContent((v) => !v)}
-                  className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-slate-200"
-                >
-                  {showTimerContent ? 'Masquer' : 'Afficher'}
-                </button>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          {showTimerContent && (
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(
-                [
-                  { key: 'days', label: 'Jours' },
-                  { key: 'hours', label: 'Heures' },
-                  { key: 'minutes', label: 'Minutes' },
-                ] as const
-              ).map((f) => (
-                <div key={f.key} className="space-y-2">
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <span>{f.label}</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365}
-                      value={timerCfg[f.key]}
-                      readOnly
-                      className="bg-slate-700 border-slate-600 text-slate-100 text-center"
-                    />
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                        onClick={() =>
-                          setTimerCfg((prev) => ({
-                            ...prev,
-                            [f.key]: Math.min(
-                              f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365,
-                              (prev[f.key] as number) + 1
-                            ),
-                          }))
-                        }
-                      >
-                        +
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                        onClick={() =>
-                          setTimerCfg((prev) => ({
-                            ...prev,
-                            [f.key]: Math.max(0, (prev[f.key] as number) - 1),
-                          }))
-                        }
-                      >
-                        -
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Presets */}
-            <div className="mt-4 pt-4 border-t border-slate-700">
-              <div className="text-slate-300 text-sm mb-2">Presets rapides</div>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 1, 0)}>☕ 1h</Button>
-                <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 2, 0)}>🍽️ 2h</Button>
-                <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 4, 0)}>🌅 4h</Button>
-                <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(1, 0, 0)}>🌙 1j</Button>
-                <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 0, 30)}>⚡ 30min</Button>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-4 pt-4 border-t border-slate-700 flex items-center gap-2">
-              <Button
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={startTimer}
-              >
-                🚀 Démarrer le Timer
-              </Button>
-              <Button
-                variant="outline"
-                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                onClick={() => setTimerCfg({ days: 0, hours: 0, minutes: 0 })}
-              >
-                🗑️ Effacer
-              </Button>
-            </div>
-          </CardContent>
-          )}
-        </Card>
       </div>
 
       <InfoModal open={about} onClose={() => setAbout(false)} title="Calendrier & Kanban – principes techniques">
@@ -910,7 +793,124 @@ export const CalendarPage: React.FC = () => {
       {/* Main content */}
       <div className="main-content">
         <div className="content-area">
-          <div className="content-main p-6 overflow-y-auto">
+          <div className="content-main p-6 overflow-y-auto max-h-[calc(100vh-200px)] space-y-6">
+            {/* Timer configuration (déplacé ici) */}
+            <Card className="border-slate-700 bg-slate-800">
+              <CardHeader>
+                <CardTitle className="text-slate-100 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-blue-400" />
+                    Configuration du Timer
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-300">
+                      {timerCfg.days > 0 || timerCfg.hours > 0 || timerCfg.minutes > 0
+                        ? `Prêt (${timerCfg.days ? `${timerCfg.days}j ` : ''}${timerCfg.hours ? `${timerCfg.hours}h ` : ''}${
+                            timerCfg.minutes ? `${timerCfg.minutes}min` : ''
+                          })`
+                        : 'Prêt'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowTimerContent((v) => !v)}
+                      className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-slate-200"
+                    >
+                      {showTimerContent ? 'Masquer' : 'Afficher'}
+                    </button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              {showTimerContent && (
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(
+                    [
+                      { key: 'days', label: 'Jours' },
+                      { key: 'hours', label: 'Heures' },
+                      { key: 'minutes', label: 'Minutes' },
+                    ] as const
+                  ).map((f) => (
+                    <div key={f.key} className="space-y-2">
+                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <span>{f.label}</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365}
+                          value={timerCfg[f.key]}
+                          readOnly
+                          className="bg-slate-700 border-slate-600 text-slate-100 text-center"
+                        />
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                            onClick={() =>
+                              setTimerCfg((prev) => ({
+                                ...prev,
+                                [f.key]: Math.min(
+                                  f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365,
+                                  (prev[f.key] as number) + 1
+                                ),
+                              }))
+                            }
+                          >
+                            +
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                            onClick={() =>
+                              setTimerCfg((prev) => ({
+                                ...prev,
+                                [f.key]: Math.max(0, (prev[f.key] as number) - 1),
+                              }))
+                            }
+                          >
+                            -
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Presets */}
+                <div className="mt-4 pt-4 border-t border-slate-700">
+                  <div className="text-slate-300 text-sm mb-2">Presets rapides</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 1, 0)}>☕ 1h</Button>
+                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 2, 0)}>🍽️ 2h</Button>
+                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 4, 0)}>🌅 4h</Button>
+                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(1, 0, 0)}>🌙 1j</Button>
+                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 0, 30)}>⚡ 30min</Button>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 pt-4 border-t border-slate-700 flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={startTimer}
+                  >
+                    🚀 Démarrer le Timer
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                    onClick={() => setTimerCfg({ days: 0, hours: 0, minutes: 0 })}
+                  >
+                    🗑️ Effacer
+                  </Button>
+                </div>
+              </CardContent>
+              )}
+            </Card>
             {/* Kanban header */}
             <div className="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
               <h3 className="text-xl font-semibold text-slate-100">Tableau Kanban - Gestion des Tâches</h3>

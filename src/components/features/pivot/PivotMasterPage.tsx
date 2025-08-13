@@ -235,194 +235,7 @@ export const PivotMasterPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Scenario */}
-        <Card className="border-slate-700 bg-slate-800">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-slate-100 flex items-center gap-2"><Network className="w-5 h-5" /> Scénario</CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="hidden md:block text-xs text-slate-400 mr-2">
-                  {scenario.attacker.ip}:{scenario.attacker.socksPort} → {scenario.pivot1?.ip || '—'} {scenario.pivot2 ? `→ ${scenario.pivot2.ip}` : ''} → {scenario.target.ip} ({scenario.target.subnet})
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
-                  onClick={() => toast.success('Commandes générées')}
-                >
-                  🚀 Générer les commandes
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                  onClick={() => setExpanded((e) => ({...e, scenario: !e.scenario}))}
-                >
-                  {expanded.scenario ? 'Masquer' : 'Modifier'}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          {expanded.scenario && (
-          <CardContent>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Attacker */}
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-slate-100">Attaquant</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <label className="text-sm text-slate-400">IP</label>
-                    <Input value={scenario.attacker.ip} onChange={(e) => setScenario((s) => ({...s, attacker: {...s.attacker, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-400">SOCKS port</label>
-                    <Input value={scenario.attacker.socksPort} onChange={(e) => setScenario((s) => ({...s, attacker: {...s.attacker, socksPort: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pivot-1 */}
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-slate-100">Pivot-1</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-sm text-slate-400">IP</label>
-                      <Input value={scenario.pivot1?.ip || ''} onChange={(e) => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, ip: e.target.value} : null}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Utilisateur SSH</label>
-                      <Input value={scenario.pivot1?.sshUser || ''} onChange={(e) => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, sshUser: e.target.value} : null}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 items-end">
-                    <div>
-                      <label className="text-sm text-slate-400">OS</label>
-                      <Select value={scenario.pivot1?.os || 'linux'} onValueChange={(v: OSEnum) => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, os: v} : null}))}>
-                        <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
-                          <SelectItem value="linux">Linux</SelectItem>
-                          <SelectItem value="windows">Windows</SelectItem>
-                          <SelectItem value="macos">macOS</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">SSH</label>
-                      <Select value={scenario.pivot1?.hasSSH ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, hasSSH: v==='yes'} : null}))}>
-                        <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
-                          <SelectItem value="yes">Oui</SelectItem>
-                          <SelectItem value="no">Non</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Agent (ligolo/chisel)</label>
-                      <Select value={scenario.pivot1?.canRunAgent ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, canRunAgent: v==='yes'} : null}))}>
-                        <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
-                          <SelectItem value="yes">Oui</SelectItem>
-                          <SelectItem value="no">Non</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pivot-2 (optionnel) */}
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-slate-100">Pivot-2 (optionnel)</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-sm text-slate-400">IP</label>
-                      <Input value={scenario.pivot2?.ip || ''} onChange={(e) => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, ip: e.target.value} : { label: 'Pivot-2', ip: e.target.value, os: 'linux', hasSSH: true, canRunAgent: true, sshUser: 'user' }}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Utilisateur SSH</label>
-                      <Input value={scenario.pivot2?.sshUser || ''} onChange={(e) => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, sshUser: e.target.value} : { label: 'Pivot-2', ip: '', os: 'linux', hasSSH: true, canRunAgent: true, sshUser: e.target.value }}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 items-end">
-                    <div>
-                      <label className="text-sm text-slate-400">OS</label>
-                      <Select value={scenario.pivot2?.os || 'linux'} onValueChange={(v: OSEnum) => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, os: v} : { label: 'Pivot-2', ip: '', os: v, hasSSH: true, canRunAgent: true, sshUser: 'user' }}))}>
-                        <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
-                          <SelectItem value="linux">Linux</SelectItem>
-                          <SelectItem value="windows">Windows</SelectItem>
-                          <SelectItem value="macos">macOS</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">SSH</label>
-                      <Select value={scenario.pivot2?.hasSSH ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, hasSSH: v==='yes'} : { label: 'Pivot-2', ip: '', os: 'linux', hasSSH: v==='yes', canRunAgent: true, sshUser: 'user' }}))}>
-                        <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
-                          <SelectItem value="yes">Oui</SelectItem>
-                          <SelectItem value="no">Non</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Agent (ligolo/chisel)</label>
-                      <Select value={scenario.pivot2?.canRunAgent ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, canRunAgent: v==='yes'} : { label: 'Pivot-2', ip: '', os: 'linux', hasSSH: true, canRunAgent: v==='yes', sshUser: 'user' }}))}>
-                        <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
-                          <SelectItem value="yes">Oui</SelectItem>
-                          <SelectItem value="no">Non</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Target */}
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-slate-100">Cible</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-sm text-slate-400">IP</label>
-                      <Input value={scenario.target.ip} onChange={(e) => setScenario((s) => ({...s, target: {...s.target, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Sous-réseau</label>
-                      <Input value={scenario.target.subnet} onChange={(e) => setScenario((s) => ({...s, target: {...s.target, subnet: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-400">Stratégie</label>
-                    <Select value={scenario.strategy} onValueChange={(v: any) => setScenario((s) => ({...s, strategy: v}))}>
-                      <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
-                        <SelectItem value="auto">Auto (recommandé)</SelectItem>
-                        <SelectItem value="ssh">SSH</SelectItem>
-                        <SelectItem value="ligolo">Ligolo-ng</SelectItem>
-                        <SelectItem value="chisel">Chisel</SelectItem>
-                        <SelectItem value="sshuttle">sshuttle</SelectItem>
-                        <SelectItem value="socat">socat</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-          )}
-        </Card>
+        {/* Scenario déplacé dans le contenu principal */}
       </div>
 
       <InfoModal open={about} onClose={() => setAbout(false)} title="Pivot Master – principes techniques">
@@ -438,6 +251,195 @@ export const PivotMasterPage: React.FC = () => {
       <div className="main-content">
         <div className="content-area">
           <div className="content-main p-6 space-y-6">
+            {/* Scénario (déplacé ici) */}
+            <Card className="border-slate-700 bg-slate-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-100 flex items-center gap-2"><Network className="w-5 h-5" /> Scénario</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="hidden md:block text-xs text-slate-400 mr-2">
+                      {scenario.attacker.ip}:{scenario.attacker.socksPort} → {scenario.pivot1?.ip || '—'} {scenario.pivot2 ? `→ ${scenario.pivot2.ip}` : ''} → {scenario.target.ip} ({scenario.target.subnet})
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                      onClick={() => toast.success('Commandes générées')}
+                    >
+                      🚀 Générer les commandes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                      onClick={() => setExpanded((e) => ({...e, scenario: !e.scenario}))}
+                    >
+                      {expanded.scenario ? 'Masquer' : 'Modifier'
+                      }
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              {expanded.scenario && (
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Attaquant */}
+                  <Card className="border-slate-700 bg-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-slate-100">Attaquant</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div>
+                        <label className="text-sm text-slate-400">IP</label>
+                        <Input value={scenario.attacker.ip} onChange={(e) => setScenario((s) => ({...s, attacker: {...s.attacker, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                      </div>
+                      <div>
+                        <label className="text-sm text-slate-400">SOCKS port</label>
+                        <Input value={scenario.attacker.socksPort} onChange={(e) => setScenario((s) => ({...s, attacker: {...s.attacker, socksPort: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pivot-1 */}
+                  <Card className="border-slate-700 bg-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-slate-100">Pivot-1</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-sm text-slate-400">IP</label>
+                          <Input value={scenario.pivot1?.ip || ''} onChange={(e) => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, ip: e.target.value} : null}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Utilisateur SSH</label>
+                          <Input value={scenario.pivot1?.sshUser || ''} onChange={(e) => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, sshUser: e.target.value} : null}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 items-end">
+                        <div>
+                          <label className="text-sm text-slate-400">OS</label>
+                          <Select value={scenario.pivot1?.os || 'linux'} onValueChange={(v: OSEnum) => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, os: v} : null}))}>
+                            <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="linux">Linux</SelectItem>
+                              <SelectItem value="windows">Windows</SelectItem>
+                              <SelectItem value="macos">macOS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">SSH</label>
+                          <Select value={scenario.pivot1?.hasSSH ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, hasSSH: v==='yes'} : null}))}>
+                            <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="yes">Oui</SelectItem>
+                              <SelectItem value="no">Non</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Agent (ligolo/chisel)</label>
+                          <Select value={scenario.pivot1?.canRunAgent ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot1: s.pivot1 ? {...s.pivot1, canRunAgent: v==='yes'} : null}))}>
+                            <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="yes">Oui</SelectItem>
+                              <SelectItem value="no">Non</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pivot-2 (optionnel) */}
+                  <Card className="border-slate-700 bg-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-slate-100">Pivot-2 (optionnel)</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-sm text-slate-400">IP</label>
+                          <Input value={scenario.pivot2?.ip || ''} onChange={(e) => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, ip: e.target.value} : { label: 'Pivot-2', ip: e.target.value, os: 'linux', hasSSH: true, canRunAgent: true, sshUser: 'user' }}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Utilisateur SSH</label>
+                          <Input value={scenario.pivot2?.sshUser || ''} onChange={(e) => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, sshUser: e.target.value} : { label: 'Pivot-2', ip: '', os: 'linux', hasSSH: true, canRunAgent: true, sshUser: e.target.value }}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 items-end">
+                        <div>
+                          <label className="text-sm text-slate-400">OS</label>
+                          <Select value={scenario.pivot2?.os || 'linux'} onValueChange={(v: OSEnum) => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, os: v} : { label: 'Pivot-2', ip: '', os: v, hasSSH: true, canRunAgent: true, sshUser: 'user' }}))}>
+                            <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="linux">Linux</SelectItem>
+                              <SelectItem value="windows">Windows</SelectItem>
+                              <SelectItem value="macos">macOS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">SSH</label>
+                          <Select value={scenario.pivot2?.hasSSH ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, hasSSH: v==='yes'} : { label: 'Pivot-2', ip: '', os: 'linux', hasSSH: v==='yes', canRunAgent: true, sshUser: 'user' }}))}>
+                            <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="yes">Oui</SelectItem>
+                              <SelectItem value="no">Non</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Agent (ligolo/chisel)</label>
+                          <Select value={scenario.pivot2?.canRunAgent ? 'yes' : 'no'} onValueChange={(v: 'yes'|'no') => setScenario((s) => ({...s, pivot2: s.pivot2 ? {...s.pivot2, canRunAgent: v==='yes'} : { label: 'Pivot-2', ip: '', os: 'linux', hasSSH: true, canRunAgent: v==='yes', sshUser: 'user' }}))}>
+                            <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="yes">Oui</SelectItem>
+                              <SelectItem value="no">Non</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Cible */}
+                  <Card className="border-slate-700 bg-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-slate-100">Cible</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-sm text-slate-400">IP</label>
+                          <Input value={scenario.target.ip} onChange={(e) => setScenario((s) => ({...s, target: {...s.target, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Sous-réseau</label>
+                          <Input value={scenario.target.subnet} onChange={(e) => setScenario((s) => ({...s, target: {...s.target, subnet: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm text-slate-400">Stratégie</label>
+                        <Select value={scenario.strategy} onValueChange={(v: any) => setScenario((s) => ({...s, strategy: v}))}>
+                          <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-600">
+                            <SelectItem value="auto">Auto (recommandé)</SelectItem>
+                            <SelectItem value="ssh">SSH</SelectItem>
+                            <SelectItem value="ligolo">Ligolo-ng</SelectItem>
+                            <SelectItem value="chisel">Chisel</SelectItem>
+                            <SelectItem value="sshuttle">sshuttle</SelectItem>
+                            <SelectItem value="socat">socat</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+              )}
+            </Card>
             <SectionHeader title="🧰 Commandes & Chaîne de pivot" onToggle={() => setExpanded((e) => ({...e, cmds: !e.cmds}))} open={expanded.cmds} />
             {expanded.cmds && (
               <div className="space-y-6">

@@ -503,70 +503,45 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                           </span>
                         </div>
                       </div>
+
+                      {/* Services résumés */}
+                      <div className="mt-2">
+                        <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Services détectés</label>
+                        {(() => {
+                          const svc = (selectedHost.services && selectedHost.services.length > 0)
+                            ? selectedHost.services
+                            : (selectedHost.ports || []).map(p => ({ name: p.service || '', port: p.port, status: p.status, version: p.version }));
+                          if (!svc || svc.length === 0) {
+                            return <div className="text-slate-400 text-sm">Aucun service.</div>;
+                          }
+                          return (
+                            <div className="mt-1 max-h-40 overflow-auto rounded border border-slate-700 bg-slate-800/40">
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-slate-300 bg-slate-800">
+                                    <th className="text-left px-3 py-1">Port</th>
+                                    <th className="text-left px-3 py-1">Service</th>
+                                    <th className="text-left px-3 py-1">Version</th>
+                                    <th className="text-left px-3 py-1">Statut</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {svc.map((s, i) => (
+                                    <tr key={`${s.port}-${s.name}-${i}`} className="border-t border-slate-700">
+                                      <td className="px-3 py-1 font-mono text-slate-100">{s.port}</td>
+                                      <td className="px-3 py-1 text-slate-200">{s.name || '-'}</td>
+                                      <td className="px-3 py-1 text-slate-300">{s.version || '-'}</td>
+                                      <td className="px-3 py-1 text-slate-300">{s.status || '-'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </CardContent>
                   </Card>
-
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card 
-                      className="rounded-lg border text-card-foreground shadow-sm bg-card border-border stats-card cursor-pointer hover:bg-slate-700/50 transition-colors"
-                      onClick={() => setShowGlobalCredentialsView(true)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Shield className="w-8 h-8 text-purple-400" />
-                          <div>
-                            <p className="text-2xl font-bold text-slate-100">
-                              {selectedHost.usernames.length + selectedHost.passwords.length + selectedHost.hashes.length}
-                            </p>
-                            <p className="text-sm text-slate-400">Credentials</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card 
-                      className="rounded-lg border text-card-foreground shadow-sm bg-card border-border stats-card cursor-pointer hover:bg-slate-700/50 transition-colors"
-                      onClick={() => setShowVulnerabilitiesView(true)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Target className="w-8 h-8 text-red-400" />
-                          <div>
-                            <p className="text-2xl font-bold text-slate-100">{selectedHost.vulnerabilities?.length || 0}</p>
-                            <p className="text-sm text-slate-400">Vulnérabilités</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card 
-                      className="rounded-lg border text-card-foreground shadow-sm bg-card border-border stats-card cursor-pointer hover:bg-slate-700/50 transition-colors"
-                      onClick={() => setActiveTab('exploitation')}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle className="w-8 h-8 text-green-400" />
-                          <div>
-                            <p className="text-2xl font-bold text-slate-100">{selectedHost.exploitationSteps?.length || 0}</p>
-                            <p className="text-sm text-slate-400">Étapes d'exploitation</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card 
-                      className="rounded-lg border text-card-foreground shadow-sm bg-card border-border stats-card cursor-pointer hover:bg-slate-700/50 transition-colors"
-                      onClick={() => setShowScreenshotsView(true)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Camera className="w-8 h-8 text-blue-400" />
-                          <div>
-                            <p className="text-2xl font-bold text-slate-100">{selectedHost.screenshots?.length || 0}</p>
-                            <p className="text-sm text-slate-400">Screenshots</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
 
                   {/* Quick Notes Preview */}
                   {selectedHost.notes && (

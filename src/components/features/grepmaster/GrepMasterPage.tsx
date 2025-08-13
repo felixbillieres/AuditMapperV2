@@ -214,71 +214,72 @@ const GrepMasterPage: React.FC = () => {
           ⚠️ Avertissement regex: je suis nul en regex. Les extractions accélèrent le tri mais il faut toujours vérifier à la main. Si tu es chaud en regex et veux aider, contacte-moi en MP.
         </div>
 
-        <Card className="border-slate-700 bg-slate-800">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-slate-100">Données à analyser</CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                onClick={() => setExpanded(e => ({ ...e, input: !e.input }))}
-              >
-                {expanded.input ? 'Réduire' : 'Afficher'}
-              </Button>
-            </div>
-          </CardHeader>
-          {expanded.input && (
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="text-sm text-slate-400">Type d'output</label>
-                <Select value={outputType} onValueChange={v => setOutputType(v)}>
-                  <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-800 border-slate-600">
-                    {OUTPUT_TYPES.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm text-slate-400">Détecté</label>
-                <Input readOnly value={detected} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm text-slate-400">Lignes</label>
-                  <Input readOnly value={lines} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                </div>
-                <div>
-                  <label className="text-sm text-slate-400">Caractères</label>
-                  <Input readOnly value={chars} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                </div>
-              </div>
-            </div>
-
-            <Textarea
-              value={raw}
-              onChange={e => setRaw(e.target.value)}
-              rows={14}
-              placeholder="Collez ici vos outputs (secretsdump, mimikatz, nmap, etc.)"
-              className="bg-slate-900 border-slate-700 text-slate-100"
-            />
-            <div className="flex gap-2">
-              <Button onClick={() => {/* simple re-analyse trigger */}} className="bg-blue-600 hover:bg-blue-700 text-white">Analyser</Button>
-              <Button variant="outline" onClick={() => setRaw('')} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">Vider</Button>
-            </div>
-          </CardContent>
-          )}
-        </Card>
       </div>
 
       <div className="main-content">
         <div className="content-area">
           <div className="content-main p-4 md:p-6 space-y-6 w-full max-w-none">
+            {/* Données à analyser (déplacé dans le flux scrollable) */}
+            <Card className="border-slate-700 bg-slate-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-100">Données à analyser</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                    onClick={() => setExpanded(e => ({ ...e, input: !e.input }))}
+                  >
+                    {expanded.input ? 'Réduire' : 'Afficher'}
+                  </Button>
+                </div>
+              </CardHeader>
+              {expanded.input && (
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-sm text-slate-400">Type d'output</label>
+                    <Select value={outputType} onValueChange={v => setOutputType(v)}>
+                      <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        {OUTPUT_TYPES.map(o => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-slate-400">Détecté</label>
+                    <Input readOnly value={detected} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-slate-400">Lignes</label>
+                      <Input readOnly value={lines} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-400">Caractères</label>
+                      <Input readOnly value={chars} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                    </div>
+                  </div>
+                </div>
+
+                <Textarea
+                  value={raw}
+                  onChange={e => setRaw(e.target.value)}
+                  rows={14}
+                  placeholder="Collez ici vos outputs (secretsdump, mimikatz, nmap, etc.)"
+                  className="bg-slate-900 border-slate-700 text-slate-100"
+                />
+                <div className="flex gap-2">
+                  <Button onClick={() => {/* simple re-analyse trigger */}} className="bg-blue-600 hover:bg-blue-700 text-white">Analyser</Button>
+                  <Button variant="outline" onClick={() => setRaw('')} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">Vider</Button>
+                </div>
+              </CardContent>
+              )}
+            </Card>
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">

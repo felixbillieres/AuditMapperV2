@@ -208,122 +208,28 @@ export const FileTransferPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Scenario configuration (compact + repliable) */}
-        <Card className="border-slate-700 bg-slate-800">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-slate-100">🎯 Configuration du Scénario</CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="hidden md:block text-xs text-slate-400 mr-2">
-                  {scenario.attacker.ip}:{scenario.attacker.port} → {scenario.target.ip} • {scenario.target.filename} → {destFullPath}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
-                  onClick={() => {
-                    setScenario({ ...draftScenario });
-                    toast.success('Commandes générées');
-                  }}
-                >
-                  🚀 Générer les Commandes
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                  onClick={() => setShowScenarioContent((v) => !v)}
-                >
-                  {showScenarioContent ? 'Masquer' : 'Modifier'}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          {showScenarioContent && (
-          <CardContent>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Attacker */}
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-100">
-                    <MonitorSmartphone className="w-4 h-4" /> Machine Attaquant
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <label className="text-sm text-slate-400">OS</label>
-                    <Select value={draftScenario.attacker.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, os: v}}))}>
-                      <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
-                        <SelectItem value="linux">🐧 Linux</SelectItem>
-                        <SelectItem value="windows">🪟 Windows</SelectItem>
-                        <SelectItem value="macos">🍎 macOS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-400">Adresse IP</label>
-                    <Input value={draftScenario.attacker.ip} onChange={(e) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                  </div>
-                  <div>
-                    <label className="text-sm text-slate-400">Port d'écoute (HTTP/Netcat)</label>
-                    <Input value={draftScenario.attacker.port} onChange={(e) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, port: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Scenario configuration (supprimée du header - déplacée en bas) */}
+      </div>
 
-              {/* middle arrow */}
-              <div className="hidden lg:flex items-center justify-center">
-                <div className="text-slate-300 text-4xl">➡️</div>
-              </div>
-
-              {/* Target */}
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-100">
-                    <TargetIcon /> Machine Cible
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div>
-                    <label className="text-sm text-slate-400">OS</label>
-                    <Select value={draftScenario.target.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, target: {...s.target, os: v}}))}>
-                      <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
-                        <SelectItem value="linux">🐧 Linux</SelectItem>
-                        <SelectItem value="windows">🪟 Windows</SelectItem>
-                        <SelectItem value="macos">🍎 macOS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-slate-400">IP de la cible</label>
-                      <Input value={draftScenario.target.ip} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+      {/* Main content */}
+      <div className="main-content">
+        <div className="content-area">
+          <div className="content-main p-6 space-y-6">
+            {/* 🎯 Configuration du Scénario (déplacée ici) */}
+            <Card className="border-slate-700 bg-slate-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-100">🎯 Configuration du Scénario</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="hidden md:block text-xs text-slate-400 mr-2">
+                      {scenario.attacker.ip}:{scenario.attacker.port} → {scenario.target.ip} • {scenario.target.filename} → {destFullPath}
                     </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Port SSH</label>
-                      <Input value={draftScenario.target.sshPort} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, sshPort: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-slate-400">Nom du fichier</label>
-                      <Input value={draftScenario.target.filename} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, filename: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-slate-400">Destination</label>
-                      <Input value={draftScenario.target.destPath} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, destPath: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
-                    </div>
-                  </div>
-                  <div className="text-xs text-slate-400">Chemin final (brouillon): <code className="text-slate-200">{buildDestFullPath(draftScenario.target.destPath, draftScenario.target.filename, draftScenario.target.os)}</code></div>
-                  <div className="flex items-center gap-2 pt-2">
                     <Button
-                      variant="default"
-                      className="bg-blue-600 hover:bg-blue-700"
+                      variant="outline"
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
                       onClick={() => {
                         setScenario({ ...draftScenario });
-                        setShowScenarioContent(false);
                         toast.success('Commandes générées');
                       }}
                     >
@@ -331,27 +237,122 @@ export const FileTransferPage: React.FC = () => {
                     </Button>
                     <Button
                       variant="outline"
+                      size="sm"
                       className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                      onClick={() => setDraftScenario({
-                        attacker: { os: 'linux', ip: '10.10.14.1', port: '8000' },
-                        target: { os: 'linux', ip: '10.10.10.10', sshPort: '22', filename: 'exploit.sh', destPath: '/tmp' },
-                      })}
+                      onClick={() => setShowScenarioContent((v) => !v)}
                     >
-                      🔄 Réinitialiser
+                      {showScenarioContent ? 'Masquer' : 'Modifier'}
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-          )}
-        </Card>
-      </div>
+                </div>
+              </CardHeader>
+              {showScenarioContent && (
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Attacker */}
+                  <Card className="border-slate-700 bg-slate-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-slate-100">
+                        <MonitorSmartphone className="w-4 h-4" /> Machine Attaquant
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div>
+                        <label className="text-sm text-slate-400">OS</label>
+                        <Select value={draftScenario.attacker.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, os: v}}))}>
+                          <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-600">
+                            <SelectItem value="linux">🐧 Linux</SelectItem>
+                            <SelectItem value="windows">🪟 Windows</SelectItem>
+                            <SelectItem value="macos">🍎 macOS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm text-slate-400">Adresse IP</label>
+                        <Input value={draftScenario.attacker.ip} onChange={(e) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                      </div>
+                      <div>
+                        <label className="text-sm text-slate-400">Port d'écoute (HTTP/Netcat)</label>
+                        <Input value={draftScenario.attacker.port} onChange={(e) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, port: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-      {/* Main content */}
-      <div className="main-content">
-        <div className="content-area">
-          <div className="content-main p-6 space-y-6">
+                  {/* middle arrow */}
+                  <div className="hidden lg:flex items-center justify-center">
+                    <div className="text-slate-300 text-4xl">➡️</div>
+                  </div>
+
+                  {/* Target */}
+                  <Card className="border-slate-700 bg-slate-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-slate-100">
+                        <TargetIcon /> Machine Cible
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div>
+                        <label className="text-sm text-slate-400">OS</label>
+                        <Select value={draftScenario.target.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, target: {...s.target, os: v}}))}>
+                          <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-600">
+                            <SelectItem value="linux">🐧 Linux</SelectItem>
+                            <SelectItem value="windows">🪟 Windows</SelectItem>
+                            <SelectItem value="macos">🍎 macOS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-slate-400">IP de la cible</label>
+                          <Input value={draftScenario.target.ip} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Port SSH</label>
+                          <Input value={draftScenario.target.sshPort} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, sshPort: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-slate-400">Nom du fichier</label>
+                          <Input value={draftScenario.target.filename} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, filename: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Destination</label>
+                          <Input value={draftScenario.target.destPath} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, destPath: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-400">Chemin final (brouillon): <code className="text-slate-200">{buildDestFullPath(draftScenario.target.destPath, draftScenario.target.filename, draftScenario.target.os)}</code></div>
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button
+                          variant="default"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => {
+                            setScenario({ ...draftScenario });
+                            setShowScenarioContent(false);
+                            toast.success('Commandes générées');
+                          }}
+                        >
+                          🚀 Générer les Commandes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                          onClick={() => setDraftScenario({
+                            attacker: { os: 'linux', ip: '10.10.14.1', port: '8000' },
+                            target: { os: 'linux', ip: '10.10.10.10', sshPort: '22', filename: 'exploit.sh', destPath: '/tmp' },
+                          })}
+                        >
+                          🔄 Réinitialiser
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+              )}
+            </Card>
             <SectionHeader
               title="📋 Méthodes de Transfert Disponibles"
               right={

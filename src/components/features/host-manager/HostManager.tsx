@@ -50,7 +50,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [bulkParserOpen, setBulkParserOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
-  const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[] }[]>([]);
+  const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { ensureUniqueCategoryIds(); }, [ensureUniqueCategoryIds]);
 
   // Convert hosts object to array
@@ -94,7 +95,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
     setSelectedHost(host);
   };
 
-  const parseHostsFromText = (text: string): { ip: string; hostname?: string; os?: string; services?: any[] }[] => {
+  const parseHostsFromText = (text: string): { ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[] => {
     const results: any[] = [];
     const lines = text.split(/\r?\n/);
     let current: any = null;
@@ -106,12 +107,26 @@ export const HostManager: React.FC<HostManagerProps> = () => {
         if (current) results.push(current);
         const name = nmapHost[1];
         const ip = nmapHost[2] || (name.match(ipRe)?.[1] || '');
-        current = { ip, hostname: ip === name ? undefined : name, services: [] };
+        current = { ip, hostname: ip === name ? undefined : name, services: [], tags: [] };
         return;
       }
       const portLine = line.match(/^(\d+)\/(tcp|udp)\s+(open|closed|filtered|open\|filtered)\s+([\w\-\?\._]+)(?:\s+(.*))?$/i);
       if (portLine && current) {
-        current.services.push({ port: Number(portLine[1]), status: portLine[3] as any, service: portLine[4], version: portLine[5] });
+        const portNum = Number(portLine[1]);
+        const serviceName = portLine[4];
+        const versionInfo = portLine[5];
+        current.services.push({ port: portNum, status: portLine[3] as any, service: serviceName, version: versionInfo });
+        // Heuristiques: Domaine/Forêt/OS depuis la colonne VERSION
+        if (versionInfo) {
+          const domainMatch = versionInfo.match(/Domain:\s*([^,\)\]]+)/i);
+          const forestMatch = versionInfo.match(/Forest:\s*([^,\)\]]+)/i);
+          if (domainMatch) current.tags = Array.from(new Set([...(current.tags||[]), `domain:${domainMatch[1].trim()}`]));
+          if (forestMatch) current.tags = Array.from(new Set([...(current.tags||[]), `forest:${forestMatch[1].trim()}`]));
+          if (!current.os) {
+            if (/windows/i.test(versionInfo)) current.os = 'Windows';
+            else if (/linux|ubuntu|debian|centos|red hat/i.test(versionInfo)) current.os = 'Linux';
+          }
+        }
         return;
       }
       const greppable = line.match(/^Host:\s+(\d+\.\d+\.\d+\.\d+)\s+\((.*?)\)\s+Status:\s+Up/i);
@@ -119,27 +134,123 @@ export const HostManager: React.FC<HostManagerProps> = () => {
         results.push({ ip: greppable[1], hostname: greppable[2] && greppable[2] !== '()' ? greppable[2] : undefined });
         return;
       }
+      // TSV/ligne compact: "IP <tab/space> HOSTNAME <tab/space> - <tab/space> 53/domain, 88/kerberos-sec, ..."
+      const tsv = line.match(/^(\d{1,3}(?:\.\d{1,3}){3})\s+([^\s]+)\s+-\s+(.+)$/);
+      if (tsv) {
+        const ip = tsv[1];
+        const name = tsv[2];
+        const servicesStr = tsv[3];
+        const services = servicesStr.split(',').map(s=>s.trim()).filter(Boolean).map(tok => {
+          const m = tok.match(/^(\d{1,5})\/(.+)$/);
+          if (m) {
+            const svc = m[2].trim();
+            return { port: Number(m[1]), status: 'open', service: svc.replace(/\?+$/,'') };
+          }
+          // fallback: only port
+          const onlyPort = tok.match(/^(\d{1,5})$/);
+          return onlyPort ? { port: Number(onlyPort[1]), status: 'open', service: '' } : null;
+        }).filter(Boolean);
+        results.push({ ip, hostname: name !== '-' ? name : undefined, services });
+        return;
+      }
+      const fping = line.match(/^(\d{1,3}(?:\.\d{1,3}){3})\s+is\s+alive/i);
+      if (fping) {
+        results.push({ ip: fping[1] });
+        return;
+      }
       const pingOnly = line.trim().match(/^\d{1,3}(?:\.\d{1,3}){3}$/);
       if (pingOnly) {
         results.push({ ip: pingOnly[0] });
         return;
       }
-      const netexec = line.match(/^SMB\s+(\d+\.\d+\.\d+\.\d+)\s+\d+\s+\S+\s+\[\*] (.*)$/);
-      if (netexec) {
-        const ip = netexec[1];
-        const info = netexec[2];
+      // NetExec/CrackMapExec-like lines: protocol IP [port] ... [*|+|-|!] info
+      const ne = line.match(/^(SMB|HTTP|HTTPS|FTP|SSH|RDP|WINRM|LDAP|MSSQL|MYSQL|POSTGRES|VNC)\s+(\d{1,3}(?:\.\d{1,3}){3})(?:\s+(\d{1,5}))?[^\[]*\[(?:\*|\+|\-|!|INFO)?\]\s+(.*)$/i)
+        || line.match(/^(SMB|HTTP|HTTPS|FTP|SSH|RDP|WINRM|LDAP|MSSQL|MYSQL|POSTGRES|VNC)\s+(\d{1,3}(?:\.\d{1,3}){3})(?:\s+(\d{1,5}))?\s+(.*)$/i);
+      if (ne) {
+        const proto = ne[1].toLowerCase();
+        const ip = ne[2];
+        const portStr = ne[3];
+        const info = ne[4] || '';
+        const defaultPorts: Record<string, number> = { smb: 445, http: 80, https: 443, ftp: 21, ssh: 22, rdp: 3389, winrm: 5985, ldap: 389, mssql: 1433, mysql: 3306, postgres: 5432, vnc: 5900 };
+        const port = portStr ? Number(portStr) : (defaultPorts[proto] || 0);
         const name = (info.match(/name:([^\)\s]+)/i)?.[1] || '').trim();
         const domain = (info.match(/domain:([^\)\s]+)/i)?.[1] || '').trim();
         const os = info.split('(')[0].trim();
-        results.push({ ip, hostname: name || undefined, os: os || undefined, services: [{ port: 445, status: 'open', service: 'smb', version: domain ? `domain:${domain}` : undefined }] });
+        const tags = domain ? [`domain:${domain}`] : [];
+        results.push({ ip, hostname: name || undefined, os: os || undefined, services: port ? [{ port, status: 'open', service: proto, version: domain ? `domain:${domain}` : undefined }] : [], tags });
         return;
       }
     });
     if (current) results.push(current);
     // Deduplicate by IP
     const map: Record<string, any> = {};
-    results.forEach((r) => { if (!r.ip) return; if (!map[r.ip]) map[r.ip] = r; else if (r.services && r.services.length) map[r.ip].services = [...(map[r.ip].services||[]), ...r.services]; });
+    results.forEach((r) => {
+      if (!r.ip) return;
+      if (!map[r.ip]) map[r.ip] = r;
+      else {
+        if (r.hostname && !map[r.ip].hostname) map[r.ip].hostname = r.hostname;
+        if (r.os && !map[r.ip].os) map[r.ip].os = r.os;
+        if (r.tags && r.tags.length) {
+          const cur = new Set(map[r.ip].tags || []);
+          r.tags.forEach((t:string)=>cur.add(t));
+          map[r.ip].tags = Array.from(cur);
+        }
+        if (r.services && r.services.length) map[r.ip].services = [...(map[r.ip].services||[]), ...r.services];
+      }
+    });
     return Object.values(map);
+  };
+
+  const parseHostsFromNmapXml = (xmlText: string): { ip: string; hostname?: string; os?: string; services?: any[] }[] => {
+    try {
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, 'application/xml');
+      const hostNodes = Array.from(xml.getElementsByTagName('host'));
+      const out: any[] = [];
+      hostNodes.forEach((host) => {
+        const status = host.querySelector('status')?.getAttribute('state');
+        if (status && status.toLowerCase() !== 'up') return;
+        const addr = host.querySelector('address[addrtype="ipv4"]')?.getAttribute('addr') || '';
+        if (!addr) return;
+        const hostnames = host.querySelector('hostnames > hostname')?.getAttribute('name') || undefined;
+        const ports = Array.from(host.querySelectorAll('ports > port')).map((p) => {
+          const portid = Number(p.getAttribute('portid') || '0');
+          const proto = p.getAttribute('protocol') || 'tcp';
+          const state = p.querySelector('state')?.getAttribute('state') || '';
+          const svc = p.querySelector('service');
+          const name = svc?.getAttribute('name') || '';
+          const version = [svc?.getAttribute('product'), svc?.getAttribute('version')].filter(Boolean).join(' ');
+          return { port: portid, status: state, service: name || proto, version };
+        }).filter((s) => s.status && s.status !== 'closed');
+        const osmatch = host.querySelector('os osmatch')?.getAttribute('name') || undefined;
+        out.push({ ip: addr, hostname: hostnames, os: osmatch, services: ports });
+      });
+      return out;
+    } catch {
+      return [];
+    }
+  };
+
+  const handleHostsFileImport = async (file: File) => {
+    const name = file.name.toLowerCase();
+    const text = await file.text();
+    let parsed: any[] = [];
+    if (name.endsWith('.xml')) {
+      parsed = parseHostsFromNmapXml(text);
+    } else if (name.endsWith('.json')) {
+      try {
+        const data = JSON.parse(text);
+        const arr = Array.isArray(data) ? data : (data.hosts ? (Array.isArray(data.hosts) ? data.hosts : Object.values(data.hosts)) : []);
+        parsed = arr.map((h: any) => ({ ip: h.ip, hostname: h.hostname, os: h.os, services: h.services || h.ports || [] })).filter((h: any) => h.ip);
+      } catch {
+        parsed = [];
+      }
+    } else {
+      // .nmap/.gnmap/.txt — fallback to text parser
+      parsed = parseHostsFromText(text);
+    }
+    setBulkText(text);
+    setBulkPreview(parsed);
   };
 
   return (
@@ -698,12 +809,12 @@ export const HostManager: React.FC<HostManagerProps> = () => {
       {/* Bulk Parser Modal */}
       {bulkParserOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-5xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
-            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+          <div className="w-full max-w-5xl h-[80vh] md:h-[75vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col">
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-900 z-10">
               <div className="text-slate-100 font-semibold">Parseur de Hosts (Nmap / NetExec / Fping)</div>
               <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=>setBulkParserOpen(false)}>Fermer</Button>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3 flex-1 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="text-sm text-slate-300 mb-1">Catégorie cible</label>
@@ -712,7 +823,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   </select>
                 </div>
                 <div className="md:col-span-2 text-sm text-slate-400">
-                  Collez des outputs Nmap, Nmap greppable, NetExec SMB, fping… Les IP et ports ouverts seront extraits.
+                  Collez des outputs Nmap, Nmap greppable, NetExec (CME/NXC), fping… ou importez directement un fichier (.xml/.nmap/.gnmap/.json/.txt). Les IP et ports ouverts seront extraits.
                 </div>
               </div>
 
@@ -754,9 +865,18 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 </div>
               </div>
 
-              <textarea value={bulkText} onChange={(e)=>setBulkText(e.target.value)} rows={16} className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded p-3 font-mono text-sm" placeholder="# Collez ici" />
-              <div className="flex justify-between items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <textarea value={bulkText} onChange={(e)=>setBulkText(e.target.value)} rows={16} className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded p-3 font-mono text-sm" placeholder="# Collez ici" />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <input ref={fileInputRef} type="file" accept=".xml,.nmap,.gnmap,.json,.txt" className="hidden" onChange={async (e)=>{ const f = e.target.files?.[0]; if (f) { await handleHostsFileImport(f); e.currentTarget.value=''; } }} />
+                  <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=> fileInputRef.current?.click()}>Importer un fichier…</Button>
+                </div>
                 <div className="text-sm text-slate-400">Prévisualisation: {bulkPreview.length} hôte(s)</div>
+              </div>
+              <div className="flex justify-between items-center gap-2">
+                <div />
                 <div className="flex gap-2">
                   <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=>{setBulkText(''); setBulkPreview([]);}}>Effacer</Button>
                   <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=>{ const parsed = parseHostsFromText(bulkText); setBulkPreview(parsed); }}>Parser</Button>
@@ -772,7 +892,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         compromiseLevel: 'none',
                         category: bulkCategoryId || (categories[0]?.id || ''),
                         usernames: [], passwords: [], hashes: [],
-                        vulnerabilities: [], exploitationSteps: [], tags: [], notes: '',
+                        vulnerabilities: [], exploitationSteps: [], tags: h.tags || [], notes: '',
                         services: (h.services || []).map((s:any)=>({ name: s.service, port: s.port, status: s.status, version: s.version })),
                         ports: (h.services || []).map((s:any)=>({ port: s.port, status: s.status as any, service: s.service, version: s.version })),
                         screenshots: [], outgoingConnections: [], incomingConnections: [],

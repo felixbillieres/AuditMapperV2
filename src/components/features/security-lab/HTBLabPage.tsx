@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useHTBStore, HTBProject, HTBService } from '@/stores/htbStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +32,6 @@ function generateMarkdownFromProject(p: HTBProject): string {
 }
 
 export const StandalonePlaygroundPage: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { profile, addProject, updateProject, deleteProject, selectProject, exportProfile, importProfile, exportProject, importProject, closeProject } = useHTBStore();
   const projectParam = searchParams.get('project') || undefined;
@@ -47,6 +46,8 @@ export const StandalonePlaygroundPage: React.FC = () => {
   const [serviceIdx, setServiceIdx] = useState<number | null>(null);
   const [serviceNotesDraft, setServiceNotesDraft] = useState('');
   const [servicePageIdx, setServicePageIdx] = useState<number>(0); // 0 = page principale (notes), >=1 = notesPages[idx-1]
+  const [serviceNotesLayout, setServiceNotesLayout] = useState<'split'|'edit'|'preview'>('split');
+  const [serviceNotesFullscreen, setServiceNotesFullscreen] = useState(false);
 
   // Dashboard helpers
   const projects = Object.values(profile.projects);
@@ -825,10 +826,18 @@ export const StandalonePlaygroundPage: React.FC = () => {
       {/* Modal: Notes de service */}
       {serviceNotesOpen && selected && serviceIdx !== null && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 p-4" onClick={(e)=> e.target === e.currentTarget && setServiceNotesOpen(false)}>
-          <div className="w-full max-w-5xl h-[85vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col">
-            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+          <div className={`${serviceNotesFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl h-[85vh] rounded-lg'} border border-slate-700 bg-slate-900 shadow-xl flex flex-col`}>
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between gap-2">
               <div className="text-slate-100 font-semibold">Notes — Service {selected.services[serviceIdx].port}/{selected.services[serviceIdx].proto} • {selected.services[serviceIdx].service}</div>
-              <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesOpen(false)}>Fermer</Button>
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-1">
+                  <Button size="sm" variant="outline" className={`${serviceNotesLayout==='edit' ? 'bg-blue-700 border-blue-600 text-white' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`} onClick={()=> setServiceNotesLayout('edit')}>Édition</Button>
+                  <Button size="sm" variant="outline" className={`${serviceNotesLayout==='preview' ? 'bg-blue-700 border-blue-600 text-white' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`} onClick={()=> setServiceNotesLayout('preview')}>Aperçu</Button>
+                  <Button size="sm" variant="outline" className={`${serviceNotesLayout==='split' ? 'bg-blue-700 border-blue-600 text-white' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`} onClick={()=> setServiceNotesLayout('split')}>Split</Button>
+                </div>
+                <Button size="sm" variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesFullscreen(v=>!v)}>{serviceNotesFullscreen ? 'Fenêtré' : 'Plein écran'}</Button>
+                <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesOpen(false)}>Fermer</Button>
+              </div>
             </div>
             <div className="p-4 border-b border-slate-700 flex items-center gap-2 overflow-x-auto">
               <button onClick={()=>{ setServicePageIdx(0); setServiceNotesDraft(selected.services[serviceIdx!].notes || ''); }} className={`px-3 py-1 rounded text-sm ${servicePageIdx===0? 'bg-slate-700 text-slate-100':'bg-slate-800 text-slate-300 border border-slate-600'}`}>Page principale</button>
@@ -846,11 +855,53 @@ export const StandalonePlaygroundPage: React.FC = () => {
               }}>+ Ajouter une page</Button>
             </div>
             <div className="flex-1 overflow-hidden p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+              {serviceNotesLayout === 'split' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                  <div className="flex flex-col h-full">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Button size="sm" variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesDraft(v => v + "\n```bash\n# code\n```\n")}>+ Code block</Button>
+                      <div className="text-xs text-slate-400">Astuce: collez des images (Ctrl+V) — pour éviter le base64, utilisez la zone ci-dessous pour attacher l'image en local</div>
+                    </div>
+                    <Textarea
+                      value={serviceNotesDraft}
+                      onChange={(e)=> setServiceNotesDraft(e.target.value)}
+                      className="flex-1 bg-slate-900 border-slate-700 text-slate-100 font-mono"
+                    />
+                  </div>
+                  <div className="h-full overflow-auto border border-slate-700 rounded p-3 bg-slate-900">
+                    <div className="prose prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                        {serviceNotesDraft}
+                      </ReactMarkdown>
+                    </div>
+                    <div className="mt-3 p-3 bg-slate-800/50 border border-slate-700 rounded">
+                      <div className="text-xs text-slate-400 mb-2">Attacher une image (stockée en local, pas dans le texte)</div>
+                      <input type="file" accept="image/*" onChange={async (e)=>{
+                        const file = e.target.files?.[0]; if (!file) return; const id = await saveImageBlob(file);
+                        const url = await getImageObjectURL(id);
+                        if (serviceIdx===null || !url) return;
+                        const next = [...selected.services];
+                        const imgs = next[serviceIdx].images ? [...(next[serviceIdx].images as string[])] : [];
+                        imgs.push(id);
+                        next[serviceIdx] = { ...(next[serviceIdx]), images: imgs } as HTBService;
+                        updateProject(selected.id,{ services: next });
+                      }} />
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {(selected.services[serviceIdx!].images || []).map((id, i) => (
+                          <img key={i} src={''} data-id={id} className="w-full h-16 object-cover rounded border border-slate-700" onLoad={async (ev)=>{
+                            const el = ev.currentTarget as HTMLImageElement; const blobUrl = await getImageObjectURL(el.dataset.id || ''); if (blobUrl) el.src = blobUrl;
+                          }} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {serviceNotesLayout === 'edit' && (
                 <div className="flex flex-col h-full">
                   <div className="flex items-center gap-2 mb-2">
                     <Button size="sm" variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesDraft(v => v + "\n```bash\n# code\n```\n")}>+ Code block</Button>
-                  <div className="text-xs text-slate-400">Astuce: collez des images (Ctrl+V) — pour éviter le base64, utilisez la zone ci-dessous pour attacher l'image en local</div>
+                    <div className="text-xs text-slate-400">Astuce: collez des images (Ctrl+V) — utilisez l'aperçu pour voir le rendu</div>
                   </div>
                   <Textarea
                     value={serviceNotesDraft}
@@ -858,34 +909,16 @@ export const StandalonePlaygroundPage: React.FC = () => {
                     className="flex-1 bg-slate-900 border-slate-700 text-slate-100 font-mono"
                   />
                 </div>
+              )}
+              {serviceNotesLayout === 'preview' && (
                 <div className="h-full overflow-auto border border-slate-700 rounded p-3 bg-slate-900">
                   <div className="prose prose-invert max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
                       {serviceNotesDraft}
                     </ReactMarkdown>
                   </div>
-                  <div className="mt-3 p-3 bg-slate-800/50 border border-slate-700 rounded">
-                    <div className="text-xs text-slate-400 mb-2">Attacher une image (stockée en local, pas dans le texte)</div>
-                    <input type="file" accept="image/*" onChange={async (e)=>{
-                      const file = e.target.files?.[0]; if (!file) return; const id = await saveImageBlob(file);
-                      const url = await getImageObjectURL(id);
-                      if (serviceIdx===null || !url) return;
-                      const next = [...selected.services];
-                      const imgs = next[serviceIdx].images ? [...(next[serviceIdx].images as string[])] : [];
-                      imgs.push(id);
-                      next[serviceIdx] = { ...(next[serviceIdx]), images: imgs } as HTBService;
-                      updateProject(selected.id,{ services: next });
-                    }} />
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {(selected.services[serviceIdx!].images || []).map((id, i) => (
-                        <img key={i} src={''} data-id={id} className="w-full h-16 object-cover rounded border border-slate-700" onLoad={async (ev)=>{
-                          const el = ev.currentTarget as HTMLImageElement; const blobUrl = await getImageObjectURL(el.dataset.id || ''); if (blobUrl) el.src = blobUrl;
-                        }} />
-                      ))}
-                    </div>
-                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <div className="p-4 border-t border-slate-700 flex justify-end gap-2">
               <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesOpen(false)}>Annuler</Button>
