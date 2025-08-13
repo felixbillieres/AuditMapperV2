@@ -7,6 +7,8 @@ export type HTBService = {
   service: string;
   version?: string;
   notes?: string;
+  notesPages?: string[];
+  images?: string[]; // IndexedDB ids
 };
 
 export type HTBTask = {

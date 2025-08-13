@@ -193,7 +193,7 @@ const LandingPage: React.FC = () => {
             className="flex items-center gap-4"
             whileHover={{ scale: 1.05 }}
           >
-            <img src="/logo.png" alt="AuditMapper" className="w-12 h-12 rounded-lg" />
+            <img src="/1.png" alt="AuditMapper" className="w-12 h-12 rounded-lg" />
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 AuditMapper
@@ -237,7 +237,7 @@ const LandingPage: React.FC = () => {
             variants={fadeInUp}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
-            <img src="/logo.png" alt="AuditMapper" className="relative w-32 h-32 mx-auto rounded-2xl shadow-2xl" />
+            <img src="/1.png" alt="AuditMapper" className="relative w-32 h-32 mx-auto rounded-2xl shadow-2xl" />
           </motion.div>
 
           <motion.h1 

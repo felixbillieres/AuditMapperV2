@@ -12,6 +12,7 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { saveImageBlob, getImageObjectURL } from '@/utils/imgStore';
 import 'highlight.js/styles/github-dark.css';
 
 function parseNmapSimple(nmapText: string): HTBService[] {
@@ -30,7 +31,7 @@ function generateMarkdownFromProject(p: HTBProject): string {
   return `# ${p.name}\n\n- IP: ${p.ip || ''}\n- OS: ${p.os || ''}\n- Gravité: ${p.severity || 'medium'}\n- Tags: ${p.tags?.join(', ') || ''}\n\n## Résumé Exécutif\n\nObjectifs: ${p.objectives || ''}\n\n## Reconnaissance\n\n${servicesMd || '_Aucun service parsé._'}\n\n## Accès Initial\n\n${p.potentialVectors.map(v=>`- ${v.level === 'red' ? '🔴' : v.level === 'yellow' ? '🟡' : '🟢'} ${v.label}${v.note ? ` — ${v.note}`:''}`).join('\n')}\n\n### Credentials\n\n- Users: ${p.usernames.length}\n- Passwords: ${p.passwords.length}\n- Hashes: ${p.hashes.length}\n\n## Élévation de Privilèges\n\n${p.privescChecklist.filter(c=>c.done).map(c=>`- [x] ${c.label}`).join('\n')}\n\n## Post-Exploitation\n\n- Persistance:\n${p.persistenceNotes || ''}\n\n- Mouvement latéral:\n${p.lateralMoves.map(m=>`- ${m.target} (${m.method || ''}) ${m.note? '— '+m.note:''}`).join('\n')}\n`;
 }
 
-export const HTBLabPage: React.FC = () => {
+export const StandalonePlaygroundPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { profile, addProject, updateProject, deleteProject, selectProject, exportProfile, importProfile, exportProject, importProject, closeProject } = useHTBStore();
@@ -42,6 +43,10 @@ export const HTBLabPage: React.FC = () => {
   const [newProjUrl, setNewProjUrl] = useState('');
   const [exploitModalOpen, setExploitModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<any>(null);
+  const [serviceNotesOpen, setServiceNotesOpen] = useState(false);
+  const [serviceIdx, setServiceIdx] = useState<number | null>(null);
+  const [serviceNotesDraft, setServiceNotesDraft] = useState('');
+  const [servicePageIdx, setServicePageIdx] = useState<number>(0); // 0 = page principale (notes), >=1 = notesPages[idx-1]
 
   // Dashboard helpers
   const projects = Object.values(profile.projects);
@@ -101,8 +106,8 @@ export const HTBLabPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="AuditMapper" className="w-8 h-8 rounded-lg opacity-80" />
             <div>
-              <h1 className="text-2xl font-bold text-slate-100">HTB Lab</h1>
-              <p className="text-slate-400 text-sm">Tableau de bord et espace de travail pour vos boxes Hack The Box</p>
+              <h1 className="text-2xl font-bold text-slate-100">Standalone Playground</h1>
+              <p className="text-slate-400 text-sm">Tableau de bord et espace de travail orienté CTF</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -126,6 +131,24 @@ export const HTBLabPage: React.FC = () => {
               onClick={() => setCreateModalOpen(true)}
             >
               <Plus className="w-4 h-4 mr-2" /> Nouveau Projet
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              onClick={async () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'application/json';
+                input.onchange = async () => {
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  const text = await file.text();
+                  try { importProject(JSON.parse(text)); } catch { alert('JSON invalide'); }
+                };
+                input.click();
+              }}
+            >
+              <Upload className="w-4 h-4 mr-2" /> Import Projet (.project.json)
             </Button>
             <Button
               variant="outline"
@@ -221,26 +244,40 @@ export const HTBLabPage: React.FC = () => {
                     )}
                   </CardContent>
                 </Card>
+                {/* Mood of the day card */}
                 <Card className="border-slate-700 bg-slate-800">
                   <CardHeader>
-                    <CardTitle className="text-slate-100">Importer un projet</CardTitle>
+                    <CardTitle className="text-slate-100">Mood of the day</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Button
-                      variant="outline"
-                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                      onClick={async () => {
-                        const input = document.createElement('input');
-                        input.type = 'file'; input.accept = 'application/json';
-                        input.onchange = async () => {
-                          const f = input.files?.[0]; if (!f) return;
-                          try { importProject(JSON.parse(await f.text())); } catch { alert('JSON invalide'); }
-                        };
-                        input.click();
-                      }}
-                    >
-                      <Upload className="w-4 h-4 mr-2" /> Importer .project.json
-                    </Button>
+                    <div className="w-full flex flex-col items-center">
+                      <div className="relative w-full aspect-square max-w-[220px] rounded-md border border-slate-700 bg-slate-900/40 overflow-hidden">
+                        <img
+                          src={(() => {
+                            const now = new Date();
+                            const start = new Date(now); start.setDate(now.getDate() - 7);
+                            const doneLast7 = projects.filter(p => p.createdAt >= start.toISOString()).length;
+                            if (doneLast7 >= 3) return '/4.png';
+                            if (doneLast7 === 2) return '/3.png';
+                            if (doneLast7 === 1) return '/1.png';
+                            return '/2.png';
+                          })()}
+                          alt="mood"
+                          className="absolute inset-0 w-full h-full object-contain p-2"
+                        />
+                      </div>
+                      <div className="text-center mt-2 text-slate-300 text-sm">
+                        {(() => {
+                          const now = new Date();
+                          const start = new Date(now); start.setDate(now.getDate() - 7);
+                          const count = projects.filter(p => p.createdAt >= start.toISOString()).length;
+                          if (count >= 3) return 'God Mode: 3+ projets cette semaine';
+                          if (count === 2) return 'On Fire: 2 projets cette semaine';
+                          if (count === 1) return 'Happy: 1 projet cette semaine';
+                          return 'Sad: 0 projet cette semaine';
+                        })()}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
                 <Card className="lg:col-span-3 border-slate-700 bg-slate-800">
@@ -435,21 +472,22 @@ export const HTBLabPage: React.FC = () => {
                     {selected.services.length === 0 ? (
                       <div className="text-slate-400 text-sm">Aucun service.</div>
                     ) : (
-                      <div className="grid md:grid-cols-2 gap-3">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {selected.services.map((s, idx) => (
-                          <div key={`${s.port}/${s.proto}-${idx}`} className="p-3 rounded border border-slate-700 bg-slate-900/40">
-                            <div className="flex items-center justify-between">
+                          <div key={`${s.port}/${s.proto}-${idx}`} className="p-3 rounded border border-slate-700 bg-slate-900/40 hover:border-slate-500 transition-colors">
+                            <div className="flex items-center justify-between mb-1">
                               <div className="text-slate-100 font-semibold">{s.port}/{s.proto} • {s.service}</div>
                               <Button size="sm" variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => {
                                 const copy = [...selected.services]; copy.splice(idx,1); updateProject(selected.id,{ services: copy });
                               }}>Supprimer</Button>
                             </div>
                             <div className="text-xs text-slate-400">{s.version || '—'}</div>
-                            <div className="mt-2">
-                              <label className="text-xs text-slate-400">Notes</label>
-                              <Textarea rows={3} value={s.notes||''} onChange={(e)=>{
-                                const next = [...selected.services]; next[idx] = { ...next[idx], notes: e.target.value }; updateProject(selected.id,{ services: next });
-                              }} className="w-full bg-slate-700 border-slate-600 text-slate-100" />
+                            {/* Preview & notes modal trigger */}
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <div className="text-xs text-slate-300 line-clamp-2 flex-1 min-h-[2rem]">
+                                {(s.notes && s.notes.trim()) ? s.notes : <span className="italic text-slate-500">Aucune note</span>}
+                              </div>
+                              <Button size="sm" variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => { setServiceIdx(idx); setServicePageIdx(0); setServiceNotesDraft(s.notes || ''); setServiceNotesOpen(true); }}>Ouvrir les notes</Button>
                             </div>
                             {s.service.toLowerCase().includes('http') && (
                               <div className="mt-2 text-xs text-slate-300 space-y-1">
@@ -458,6 +496,37 @@ export const HTBLabPage: React.FC = () => {
                                 <code className="block bg-slate-900 border border-slate-700 rounded px-2 py-1">gobuster dir -u http://{selected.ip || 'TARGET'}:{s.port} -w /usr/share/wordlists/dirb/common.txt</code>
                               </div>
                             )}
+                            {/* HackTricks links for common services */}
+                            {(() => {
+                              const map: Record<string,string> = {
+                                smb: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-smb',
+                                ftp: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-ftp',
+                                ssh: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-ssh',
+                                rsh: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-rsh',
+                                rusersd: 'https://hacktricks.boitatech.com.br/pentesting/1026-pentesting-rusersd',
+                                telnet: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-telnet',
+                                smtp: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-smtp',
+                                pop3: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-pop',
+                                imap: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-imap',
+                                ldap: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-ldap',
+                                http: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-web',
+                                https: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-web',
+                                mysql: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-mysql',
+                                mssql: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-mssql-microsoft-sql-server',
+                                postgres: 'https://hacktricks.boitatech.com.br/pentesting/postgres',
+                                rdp: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-rdp',
+                                vnc: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-vnc',
+                                snmp: 'https://hacktricks.boitatech.com.br/pentesting/pentesting-snmp',
+                                nfs: 'https://hacktricks.boitatech.com.br/pentesting/nfs-service',
+                              };
+                              const key = (s.service || '').toLowerCase();
+                              const url = map[key];
+                              return url ? (
+                                <div className="mt-2 text-xs">
+                                  <a className="text-sky-400 underline" href={url} target="_blank" rel="noreferrer">HackTricks: {key.toUpperCase()}</a>
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
                         ))}
                       </div>
@@ -523,22 +592,7 @@ export const HTBLabPage: React.FC = () => {
                       <Textarea rows={5} placeholder="passwords" className="bg-slate-700 border-slate-600 text-slate-100" value={selected.passwords.join('\n')} onChange={(e)=>updateProject(selected.id,{ passwords: e.target.value.split(/\r?\n/).filter(Boolean) })} />
                       <Textarea rows={5} placeholder="hashes" className="bg-slate-700 border-slate-600 text-slate-100" value={selected.hashes.join('\n')} onChange={(e)=>updateProject(selected.id,{ hashes: e.target.value.split(/\r?\n/).filter(Boolean) })} />
                     </div>
-                    <div>
-                      <div className="text-slate-300 text-sm mb-1">Journal des exploits</div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {selected.exploitLog.map((en) => (
-                          <div key={en.id} className="p-2 bg-slate-700/40 border border-slate-600 rounded">
-                            <div className="text-xs text-slate-400">{new Date(en.timestamp).toLocaleString('fr-FR')}</div>
-                            <div className="text-slate-100 text-sm font-medium">{en.title}</div>
-                            {en.command && <pre className="text-xs bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 whitespace-pre-wrap">{en.command}</pre>}
-                            {en.result && <pre className="text-xs bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 whitespace-pre-wrap">{en.result}</pre>}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-2 flex gap-2">
-                        <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=> setExploitModalOpen(true)}>+ Ajouter au journal</Button>
-                      </div>
-                    </div>
+                    {/* Journal supprimé ici car un container dédié se trouve plus bas */}
                   </CardContent>
                 </Card>
                 {/* Journal des exploits */}
@@ -581,35 +635,71 @@ export const HTBLabPage: React.FC = () => {
 
             {/* Privesc */}
             {selected && detailTab === 'privesc' && (
-              <Card className="border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-slate-100">Checklist Privesc</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input placeholder="Nouvel item" className="bg-slate-700 border-slate-600 text-slate-100" id="peItem" />
-                    <Button className="bg-blue-600 hover:bg-blue-700" onClick={()=>{
-                      const val = (document.getElementById('peItem') as HTMLInputElement).value.trim(); if(!val) return;
-                      updateProject(selected.id, { privescChecklist: [...selected.privescChecklist, { id: `${Date.now()}`, label: val, done: false }] });
-                      (document.getElementById('peItem') as HTMLInputElement).value='';
-                    }}>Ajouter</Button>
-                  </div>
-                  <div className="space-y-1">
-                    {selected.privescChecklist.map((it, idx) => (
-                      <div key={it.id} className="flex items-center justify-between p-2 bg-slate-700/40 border border-slate-600 rounded">
-                        <label className="flex items-center gap-2 text-slate-100 text-sm">
-                          <input type="checkbox" checked={it.done} onChange={(e)=>{
-                            const next = [...selected.privescChecklist]; next[idx] = { ...next[idx], done: e.target.checked }; updateProject(selected.id,{ privescChecklist: next });
-                          }} /> {it.label}
-                        </label>
-                        <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600" onClick={()=>{
-                          const copy = [...selected.privescChecklist]; copy.splice(idx,1); updateProject(selected.id,{ privescChecklist: copy });
-                        }}><Trash2 className="w-3 h-3" /></Button>
+              <div className="grid lg:grid-cols-2 gap-4">
+                <Card className="border-slate-700 bg-slate-800">
+                  <CardHeader>
+                    <CardTitle className="text-slate-100">Checklist Privesc</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input placeholder="Nouvel item" className="bg-slate-700 border-slate-600 text-slate-100" id="peItem" />
+                      <Button className="bg-blue-600 hover:bg-blue-700" onClick={()=>{
+                        const val = (document.getElementById('peItem') as HTMLInputElement).value.trim(); if(!val) return;
+                        updateProject(selected.id, { privescChecklist: [...selected.privescChecklist, { id: `${Date.now()}`, label: val, done: false }] });
+                        (document.getElementById('peItem') as HTMLInputElement).value='';
+                      }}>Ajouter</Button>
+                    </div>
+                    <div className="space-y-1">
+                      {selected.privescChecklist.map((it, idx) => (
+                        <div key={it.id} className="flex items-center justify-between p-2 bg-slate-700/40 border border-slate-600 rounded">
+                          <label className="flex items-center gap-2 text-slate-100 text-sm">
+                            <input type="checkbox" checked={it.done} onChange={(e)=>{
+                              const next = [...selected.privescChecklist]; next[idx] = { ...next[idx], done: e.target.checked }; updateProject(selected.id,{ privescChecklist: next });
+                            }} /> {it.label}
+                          </label>
+                          <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600" onClick={()=>{
+                            const copy = [...selected.privescChecklist]; copy.splice(idx,1); updateProject(selected.id,{ privescChecklist: copy });
+                          }}><Trash2 className="w-3 h-3" /></Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-slate-700 bg-slate-800">
+                  <CardHeader>
+                    <CardTitle className="text-slate-100">Journal des exploits (Privesc)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-end mb-2">
+                      <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=> { setEditingStep(null); setExploitModalOpen(true); }}>+ Nouvelle étape</Button>
+                    </div>
+                    {selected.exploitLog.length === 0 ? (
+                      <div className="text-slate-400 text-sm">Aucune entrée d'exploit.</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {selected.exploitLog.map((en, idx) => (
+                          <div key={en.id} className="p-3 bg-slate-700/40 border border-slate-600 rounded">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-xs text-slate-400">{new Date(en.timestamp).toLocaleString('fr-FR')}</div>
+                                <div className="text-slate-100 text-sm font-medium">{en.title}</div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=> { setEditingStep({ ...en, severity: 'Medium', status: 'completed', createdAt: en.timestamp, updatedAt: en.timestamp, notes: '', screenshots: [] }); setExploitModalOpen(true); }}>Modifier</Button>
+                                <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600" onClick={()=>{
+                                  const copy = [...selected.exploitLog]; copy.splice(idx,1); updateProject(selected.id,{ exploitLog: copy });
+                                }}>Supprimer</Button>
+                              </div>
+                            </div>
+                            {en.command && <pre className="mt-2 text-xs bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 whitespace-pre-wrap">{en.command}</pre>}
+                            {en.result && <pre className="mt-2 text-xs bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 whitespace-pre-wrap">{en.result}</pre>}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* Post-Exploitation */}
@@ -732,6 +822,91 @@ export const HTBLabPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modal: Notes de service */}
+      {serviceNotesOpen && selected && serviceIdx !== null && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 p-4" onClick={(e)=> e.target === e.currentTarget && setServiceNotesOpen(false)}>
+          <div className="w-full max-w-5xl h-[85vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col">
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+              <div className="text-slate-100 font-semibold">Notes — Service {selected.services[serviceIdx].port}/{selected.services[serviceIdx].proto} • {selected.services[serviceIdx].service}</div>
+              <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesOpen(false)}>Fermer</Button>
+            </div>
+            <div className="p-4 border-b border-slate-700 flex items-center gap-2 overflow-x-auto">
+              <button onClick={()=>{ setServicePageIdx(0); setServiceNotesDraft(selected.services[serviceIdx!].notes || ''); }} className={`px-3 py-1 rounded text-sm ${servicePageIdx===0? 'bg-slate-700 text-slate-100':'bg-slate-800 text-slate-300 border border-slate-600'}`}>Page principale</button>
+              {(selected.services[serviceIdx].notesPages || []).map((_, i)=> (
+                <button key={i} onClick={()=>{ setServicePageIdx(i+1); setServiceNotesDraft(selected.services[serviceIdx!].notesPages?.[i] || ''); }} className={`px-3 py-1 rounded text-sm ${servicePageIdx===i+1? 'bg-slate-700 text-slate-100':'bg-slate-800 text-slate-300 border border-slate-600'}`}>Page {i+1}</button>
+              ))}
+              <Button size="sm" variant="outline" className="ml-2 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=>{
+                const clone = [...selected.services];
+                const pages = clone[serviceIdx!].notesPages ? [...(clone[serviceIdx!].notesPages as string[])] : [];
+                pages.push('');
+                clone[serviceIdx!] = { ...(clone[serviceIdx!]), notesPages: pages } as HTBService;
+                updateProject(selected.id,{ services: clone });
+                setServicePageIdx(pages.length); // focus new page
+                setServiceNotesDraft('');
+              }}>+ Ajouter une page</Button>
+            </div>
+            <div className="flex-1 overflow-hidden p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full">
+                <div className="flex flex-col h-full">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Button size="sm" variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesDraft(v => v + "\n```bash\n# code\n```\n")}>+ Code block</Button>
+                  <div className="text-xs text-slate-400">Astuce: collez des images (Ctrl+V) — pour éviter le base64, utilisez la zone ci-dessous pour attacher l'image en local</div>
+                  </div>
+                  <Textarea
+                    value={serviceNotesDraft}
+                    onChange={(e)=> setServiceNotesDraft(e.target.value)}
+                    className="flex-1 bg-slate-900 border-slate-700 text-slate-100 font-mono"
+                  />
+                </div>
+                <div className="h-full overflow-auto border border-slate-700 rounded p-3 bg-slate-900">
+                  <div className="prose prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                      {serviceNotesDraft}
+                    </ReactMarkdown>
+                  </div>
+                  <div className="mt-3 p-3 bg-slate-800/50 border border-slate-700 rounded">
+                    <div className="text-xs text-slate-400 mb-2">Attacher une image (stockée en local, pas dans le texte)</div>
+                    <input type="file" accept="image/*" onChange={async (e)=>{
+                      const file = e.target.files?.[0]; if (!file) return; const id = await saveImageBlob(file);
+                      const url = await getImageObjectURL(id);
+                      if (serviceIdx===null || !url) return;
+                      const next = [...selected.services];
+                      const imgs = next[serviceIdx].images ? [...(next[serviceIdx].images as string[])] : [];
+                      imgs.push(id);
+                      next[serviceIdx] = { ...(next[serviceIdx]), images: imgs } as HTBService;
+                      updateProject(selected.id,{ services: next });
+                    }} />
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {(selected.services[serviceIdx!].images || []).map((id, i) => (
+                        <img key={i} src={''} data-id={id} className="w-full h-16 object-cover rounded border border-slate-700" onLoad={async (ev)=>{
+                          const el = ev.currentTarget as HTMLImageElement; const blobUrl = await getImageObjectURL(el.dataset.id || ''); if (blobUrl) el.src = blobUrl;
+                        }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-700 flex justify-end gap-2">
+              <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=> setServiceNotesOpen(false)}>Annuler</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={()=> {
+                if (serviceIdx === null) return;
+                const next = [...selected.services];
+                if (servicePageIdx === 0) {
+                  next[serviceIdx] = { ...next[serviceIdx], notes: serviceNotesDraft } as HTBService;
+                } else {
+                  const pages = next[serviceIdx].notesPages ? [...(next[serviceIdx].notesPages as string[])] : [];
+                  pages[servicePageIdx-1] = serviceNotesDraft;
+                  next[serviceIdx] = { ...next[serviceIdx], notesPages: pages } as HTBService;
+                }
+                updateProject(selected.id,{ services: next });
+                setServiceNotesOpen(false);
+              }}>Sauvegarder</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Ajouter au journal d'exploit */}
       {exploitModalOpen && selected && (
         <ExploitationModal
@@ -755,6 +930,6 @@ export const HTBLabPage: React.FC = () => {
   );
 };
 
-export default HTBLabPage;
+export default StandalonePlaygroundPage;
 
 

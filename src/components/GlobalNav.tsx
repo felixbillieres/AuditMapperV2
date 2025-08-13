@@ -4,11 +4,16 @@ import { Home, Server, Calendar as CalendarIcon, Network, FileText, Shield, Sear
 
 const sections = [
   {
-    title: 'Project Dashboards',
+    title: 'Large Scale Audits',
     items: [
-      { to: '/htb-lab', label: 'HTB Lab', icon: Code },
       { to: '/host-manager', label: 'Host Manager', icon: Server },
       { to: '/report', label: 'Live Report', icon: FileText },
+    ],
+  },
+  {
+    title: 'Small Scale Audits',
+    items: [
+      { to: '/standalone-playground', label: 'Standalone Playground', icon: Code },
     ],
   },
   {
@@ -36,7 +41,7 @@ export const GlobalNav: React.FC = () => {
         title="Menu AuditMapper"
         className="w-14 h-14 rounded-full bg-slate-900 border border-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.35)] hover:shadow-[0_0_30px_rgba(34,211,238,0.55)] transition-all flex items-center justify-center"
       >
-        <img src="/logo.png" alt="AuditMapper" className="w-10 h-10 rounded" />
+        <img src="/1.png" alt="AuditMapper" className="w-10 h-10 rounded" />
       </button>
 
       {/* Central modal */}
@@ -50,7 +55,8 @@ export const GlobalNav: React.FC = () => {
               </div>
               <button className="px-3 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700" onClick={()=>setOpen(false)}>Fermer</button>
             </div>
-            <div className="p-6 grid md:grid-cols-2 gap-6">
+            <div className="p-6 grid md:grid-cols-2 gap-6 relative">
+              <img src="/4.png" alt="easter" className="hidden md:block opacity-10 absolute -right-6 -bottom-6 w-72 h-72 pointer-events-none select-none" />
               {sections.map((sec) => (
                 <div key={sec.title} className="bg-slate-800/60 border border-slate-700 rounded-lg p-4">
                   <div className="text-slate-300 text-sm mb-3">{sec.title}</div>

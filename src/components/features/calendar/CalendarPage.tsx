@@ -910,7 +910,7 @@ export const CalendarPage: React.FC = () => {
       {/* Main content */}
       <div className="main-content">
         <div className="content-area">
-          <div className="content-main p-6">
+          <div className="content-main p-6 overflow-y-auto">
             {/* Kanban header */}
             <div className="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
               <h3 className="text-xl font-semibold text-slate-100">Tableau Kanban - Gestion des Tâches</h3>
