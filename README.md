@@ -14,7 +14,7 @@ Une suite d'outils modernes et professionnels pour les audits de sécurité et t
 ```bash
 # Cloner le projet
 git clone https://github.com/felixbillieres/AuditMapperV2.git
-cd auditmapper-v2
+cd AuditMapperV2
 docker compose -f dev.docker-compose.yml build
 docker compose -f dev.docker-compose.yml up
 ```
