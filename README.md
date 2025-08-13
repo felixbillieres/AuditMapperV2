@@ -2,134 +2,23 @@
 
 Une suite d'outils modernes et professionnels pour les audits de sécurité et tests d'intrusion, refactorisée avec React 18, TypeScript et une architecture modulaire.
 
-## 🚀 Technologies Utilisées
-
-### Frontend
-- **React 18** - Framework principal
-- **TypeScript** - Typage statique
-- **Vite** - Build tool ultra-rapide
-- **Tailwind CSS** - Framework CSS utilitaire
-- **Framer Motion** - Animations fluides
-- **Zustand** - State management léger
-- **React Query** - Gestion des données serveur
-- **Lucide React** - Icônes modernes
-
-### Architecture
-- **Architecture modulaire** - Composants réutilisables
-- **Store pattern** - Gestion d'état centralisée
-- **Type safety** - TypeScript strict
-- **Performance optimisée** - Lazy loading, code splitting
-- **Accessibilité** - WCAG conformes
-
-## 🎨 Design System
-
-### Thème Sombre Moderne
-- **Couleurs** - Vert néon (#00ff88), magenta (#ff0080), cyan (#00ffff)
-- **Animations fluides** - Transitions et micro-interactions
-- **Responsive design** - Mobile-first approach
-
-### Composants UI
-- **Button** - Variantes cyber, terminal, gradient
-- **Card** - Effets glass, neon, cyber
-- **Input** - Styles dark, terminal, cyber
-- **Modal** - Overlays modernes
-- **Toast** - Notifications élégantes
-
-## 📁 Structure du Projet
-
-```
-auditmapper-v2/
-├── src/
-│   ├── components/
-│   │   ├── ui/                    # Composants UI de base
-│   │   │   ├── button.tsx
-│   │   │   ├── card.tsx
-│   │   │   ├── input.tsx
-│   │   │   └── ...
-│   │   ├── layout/                # Layout et navigation
-│   │   │   ├── Header.tsx
-│   │   │   ├── Sidebar.tsx
-│   │   │   └── ...
-│   │   ├── features/              # Modules métier
-│   │   │   ├── host-manager/      # Gestionnaire de hosts
-│   │   │   │   ├── HostManager.tsx
-│   │   │   │   ├── HostCard.tsx
-│   │   │   │   ├── HostForm.tsx
-│   │   │   │   └── ...
-│   │   │   ├── pivot-master/      # Générateur de pivoting
-│   │   │   ├── grep-master/       # Parser intelligent
-│   │   │   ├── privesc-helper/    # Guide d'escalade
-│   │   │   └── config-generator/  # Générateur de config
-│   │   └── common/                # Composants partagés
-│   ├── hooks/                     # Custom hooks
-│   │   ├── useLocalStorage.ts
-│   │   ├── useDebounce.ts
-│   │   └── ...
-│   ├── stores/                    # Zustand stores
-│   │   ├── hostStore.ts
-│   │   ├── uiStore.ts
-│   │   └── ...
-│   ├── services/                  # Services API
-│   │   ├── database.ts
-│   │   ├── export.ts
-│   │   └── ...
-│   ├── utils/                     # Utilitaires
-│   │   ├── index.ts
-│   │   ├── cn.ts
-│   │   └── ...
-│   ├── types/                     # Types TypeScript
-│   │   └── index.ts
-│   ├── styles/                    # Styles globaux
-│   │   └── globals.css
-│   ├── App.tsx                    # Composant principal
-│   └── main.tsx                   # Point d'entrée
-├── public/                        # Assets statiques
-├── docs/                          # Documentation
-└── ...
-```
 
 ## 🛠️ Installation et Démarrage
 
 ### Prérequis
 - **Node.js** 18+ 
 - **npm** ou **yarn**
-
+- **docker** et **docker compose**
 ### Installation
 
 ```bash
 # Cloner le projet
-git clone <repository-url>
+git clone https://github.com/felixbillieres/AuditMapperV2.git
 cd auditmapper-v2
-
-# Installer les dépendances
-npm install
-
-# Lancer en mode développement
-npm run dev
+docker compose -f dev.docker-compose.yml build
+docker compose -f dev.docker-compose.yml up
 ```
-
-### Scripts Disponibles
-
-```bash
-# Développement
-npm run dev              # Lance le serveur de développement
-npm run build            # Build de production
-npm run preview          # Prévisualise le build
-
-# Qualité de code
-npm run lint             # ESLint
-npm run lint:fix         # ESLint avec auto-fix
-npm run format           # Prettier
-npm run type-check       # Vérification TypeScript
-
-# Tests
-npm run test             # Tests unitaires
-npm run test:ui          # Interface de tests
-
-# Documentation
-npm run storybook        # Lance Storybook
-npm run build-storybook  # Build Storybook
-```
+Ouvrez le navigateur sur [http://localhost:3000](http://localhost:3000)
 
 ## 🎯 Fonctionnalités
 
@@ -225,10 +114,107 @@ Gestion d'état centralisée avec :
 - Agrégation de credentials
 - Statistiques en temps réel
 
+## 🚀 Technologies Utilisées
+
+### Frontend
+- **React 18** - Framework principal
+- **TypeScript** - Typage statique
+- **Vite** - Build tool ultra-rapide
+- **Tailwind CSS** - Framework CSS utilitaire
+- **Framer Motion** - Animations fluides
+- **Zustand** - State management léger
+- **React Query** - Gestion des données serveur
+- **Lucide React** - Icônes modernes
+
+### Architecture
+- **Architecture modulaire** - Composants réutilisables
+- **Store pattern** - Gestion d'état centralisée
+- **Type safety** - TypeScript strict
+- **Performance optimisée** - Lazy loading, code splitting
+- **Accessibilité** - WCAG conformes
+
+## 🎨 Design System
+
+### Thème Sombre Moderne
+- **Couleurs** - Vert néon (#00ff88), magenta (#ff0080), cyan (#00ffff)
+- **Animations fluides** - Transitions et micro-interactions
+- **Responsive design** - Mobile-first approach
+
+### Composants UI
+- **Button** - Variantes cyber, terminal, gradient
+- **Card** - Effets glass, neon, cyber
+- **Input** - Styles dark, terminal, cyber
+- **Modal** - Overlays modernes
+- **Toast** - Notifications élégantes
+
+## 📁 Structure du Projet
+
+```
+auditmapper-v2/
+├── src/
+│   ├── components/
+│   │   ├── ui/                    # Composants UI de base
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── input.tsx
+│   │   │   └── ...
+│   │   ├── layout/                # Layout et navigation
+│   │   │   ├── Header.tsx
+│   │   │   ├── Sidebar.tsx
+│   │   │   └── ...
+│   │   ├── features/              # Modules métier
+│   │   │   ├── host-manager/      # Gestionnaire de hosts
+│   │   │   │   ├── HostManager.tsx
+│   │   │   │   ├── HostCard.tsx
+│   │   │   │   ├── HostForm.tsx
+│   │   │   │   └── ...
+│   │   │   ├── pivot-master/      # Générateur de pivoting
+│   │   │   ├── grep-master/       # Parser intelligent
+│   │   │   ├── privesc-helper/    # Guide d'escalade
+│   │   │   └── config-generator/  # Générateur de config
+│   │   └── common/                # Composants partagés
+│   ├── hooks/                     # Custom hooks
+│   │   ├── useLocalStorage.ts
+│   │   ├── useDebounce.ts
+│   │   └── ...
+│   ├── stores/                    # Zustand stores
+│   │   ├── hostStore.ts
+│   │   ├── uiStore.ts
+│   │   └── ...
+│   ├── services/                  # Services API
+│   │   ├── database.ts
+│   │   ├── export.ts
+│   │   └── ...
+│   ├── utils/                     # Utilitaires
+│   │   ├── index.ts
+│   │   ├── cn.ts
+│   │   └── ...
+│   ├── types/                     # Types TypeScript
+│   │   └── index.ts
+│   ├── styles/                    # Styles globaux
+│   │   └── globals.css
+│   ├── App.tsx                    # Composant principal
+│   └── main.tsx                   # Point d'entrée
+├── public/                        # Assets statiques
+├── docs/                          # Documentation
+└── ...
+```
+
+
+
 ## 🤝 Contribution
 
 ### Guidelines
 1. **Fork** le projet
+```bash
+# Développement
+git clone https://github.com/felixbillieres/AuditMapperV2.git
+cd auditmapper-v2
+npm run dev              # Lance le serveur de développement
+
+```
+Ouvrez le navigateur sur [http://localhost:3000](http://localhost:3000)
+
 2. **Créer** une branche feature (`git checkout -b feature/AmazingFeature`)
 3. **Commit** les changements (`git commit -m 'Add some AmazingFeature'`)
 4. **Push** vers la branche (`git push origin feature/AmazingFeature`)
