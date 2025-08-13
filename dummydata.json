@@ -1,0 +1,243 @@
+{
+  "metadata": {
+    "exportedAt": "2025-08-13T00:00:00.000Z",
+    "version": "2.0.0",
+    "totalHosts": 10,
+    "totalCategories": 3,
+    "totalConnections": 18,
+    "totalCredentials": 6,
+    "totalVulnerabilities": 9
+  },
+  "categories": [
+    { "id": "ext", "name": "Externe", "description": "Périmètre public", "color": "#60a5fa", "icon": "Globe", "createdAt": "2025-08-01T10:00:00Z", "updatedAt": "2025-08-01T10:00:00Z" },
+    { "id": "dmz", "name": "DMZ", "description": "Zone démilitarisée", "color": "#f59e0b", "icon": "Shield", "createdAt": "2025-08-01T10:00:00Z", "updatedAt": "2025-08-01T10:00:00Z" },
+    { "id": "int", "name": "Interne", "description": "Réseau interne", "color": "#34d399", "icon": "Server", "createdAt": "2025-08-01T10:00:00Z", "updatedAt": "2025-08-01T10:00:00Z" }
+  ],
+  "networkNodes": {
+    "ext-gw": { "x": 200, "y": 80 },
+    "web": { "x": 400, "y": 180 },
+    "db": { "x": 720, "y": 420 },
+    "jump": { "x": 650, "y": 260 },
+    "ws1": { "x": 980, "y": 420 },
+    "ad": { "x": 900, "y": 240 },
+    "ws2": { "x": 1050, "y": 520 },
+    "fs": { "x": 760, "y": 540 },
+    "sql": { "x": 840, "y": 340 },
+    "mail": { "x": 700, "y": 620 }
+  },
+  "hosts": [
+    {
+      "id": "ext-gw",
+      "ip": "13.37.0.10",
+      "hostname": "edge-gateway",
+      "os": "Linux",
+      "status": "active",
+      "priority": "medium",
+      "compromiseLevel": "none",
+      "category": "ext",
+      "usernames": [],
+      "passwords": [],
+      "hashes": [],
+      "vulnerabilities": [
+        { "id": "v1", "title": "Server Banner Disclosure", "description": "Version Apache exposée", "severity": "Low", "status": "open", "createdAt": "2025-08-01T10:05:00Z", "updatedAt": "2025-08-01T10:05:00Z" }
+      ],
+      "exploitationSteps": [
+        { "id": "s1", "title": "Recon Nmap", "description": "Scan de périmètre", "severity": "Low", "status": "completed", "command": "nmap -sV 13.37.0.10", "output": "80/tcp open http Apache/2.4.54", "createdAt": "2025-08-01T10:10:00Z", "updatedAt": "2025-08-01T10:10:00Z" }
+      ],
+      "tags": ["gateway"],
+      "notes": "Point d'entrée internet",
+      "services": [ { "name": "http", "port": 80, "status": "open", "version": "Apache 2.4.54" } ],
+      "ports": [ { "port": 80, "status": "open", "service": "http", "version": "Apache 2.4.54" } ],
+      "screenshots": [],
+      "outgoingConnections": [
+        { "fromHostId": "ext-gw", "toHostId": "web", "type": "outgoing", "cause": "Exposed webapp", "method": "http", "timestamp": "2025-08-01T10:20:00Z" },
+        { "fromHostId": "ext-gw", "toHostId": "mail", "type": "outgoing", "cause": "SMTP vers mail", "method": "smtp", "timestamp": "2025-08-01T10:22:00Z" }
+      ],
+      "incomingConnections": [],
+      "discoveredAt": "2025-08-01T10:00:00Z",
+      "lastSeen": "2025-08-01T12:00:00Z",
+      "createdAt": "2025-08-01T10:00:00Z",
+      "updatedAt": "2025-08-01T12:00:00Z"
+    },
+    {
+      "id": "web",
+      "ip": "172.16.10.20",
+      "hostname": "dmz-web",
+      "os": "Linux",
+      "status": "active",
+      "priority": "high",
+      "compromiseLevel": "initial",
+      "category": "dmz",
+      "usernames": ["www-data"],
+      "passwords": [],
+      "hashes": [],
+      "vulnerabilities": [
+        { "id": "v2", "title": "RCE dans CMS", "description": "Plugin vulnérable", "severity": "High", "cve": "CVE-2023-XXXX", "cvss": 8.1, "status": "open", "createdAt": "2025-08-01T10:30:00Z", "updatedAt": "2025-08-01T10:30:00Z" }
+      ],
+      "exploitationSteps": [
+        { "id": "s2", "title": "Exploit RCE", "description": "Upload webshell via plugin", "severity": "High", "status": "completed", "command": "python exploit.py --url http://dmz-web/upload", "output": "Shell acquired as www-data", "createdAt": "2025-08-01T10:35:00Z", "updatedAt": "2025-08-01T10:35:00Z" },
+        { "id": "s3", "title": "Creds .env", "description": "Exfil de variables d'env", "severity": "Medium", "status": "completed", "command": "cat /var/www/.env", "output": "DB_USER=app DB_PASS=Summer2024!", "createdAt": "2025-08-01T10:40:00Z", "updatedAt": "2025-08-01T10:40:00Z" }
+      ],
+      "tags": ["web", "cms"],
+      "notes": "Pivot probable vers DB",
+      "services": [ { "name": "http", "port": 80, "status": "open", "version": "nginx 1.24" }, { "name": "ssh", "port": 22, "status": "open", "version": "OpenSSH_8.9" } ],
+      "ports": [ { "port": 80, "status": "open", "service": "http", "version": "nginx 1.24" }, { "port": 22, "status": "open", "service": "ssh", "version": "OpenSSH_8.9" } ],
+      "screenshots": [],
+      "outgoingConnections": [
+        { "fromHostId": "web", "toHostId": "db", "type": "outgoing", "cause": "DB creds", "method": "mysql", "timestamp": "2025-08-01T10:45:00Z" },
+        { "fromHostId": "web", "toHostId": "fs", "type": "outgoing", "cause": "SMB share pour déploiement", "method": "smb", "timestamp": "2025-08-01T10:47:00Z" }
+      ],
+      "incomingConnections": [
+        { "fromHostId": "ext-gw", "toHostId": "web", "type": "incoming", "cause": "Exposed webapp", "timestamp": "2025-08-01T10:20:00Z" }
+      ],
+      "discoveredAt": "2025-08-01T10:25:00Z",
+      "lastSeen": "2025-08-01T12:00:00Z",
+      "createdAt": "2025-08-01T10:25:00Z",
+      "updatedAt": "2025-08-01T12:00:00Z"
+    },
+    {
+      "id": "db",
+      "ip": "172.16.10.30",
+      "hostname": "dmz-db",
+      "os": "Linux",
+      "status": "active",
+      "priority": "high",
+      "compromiseLevel": "partial",
+      "category": "dmz",
+      "usernames": ["app"],
+      "passwords": ["Summer2024!"],
+      "hashes": [],
+      "vulnerabilities": [
+        { "id": "v3", "title": "Weak DB password", "description": "Mot de passe faible réutilisé", "severity": "Medium", "status": "open", "createdAt": "2025-08-01T10:50:00Z", "updatedAt": "2025-08-01T10:50:00Z" }
+      ],
+      "exploitationSteps": [
+        { "id": "s4", "title": "Dump DB", "description": "Exfil base app", "severity": "Medium", "status": "completed", "command": "mysqldump -uapp -pSummer2024! appdb", "createdAt": "2025-08-01T10:55:00Z", "updatedAt": "2025-08-01T10:55:00Z" }
+      ],
+      "tags": ["mysql"],
+      "notes": "Potentiel secrets utilisateurs",
+      "services": [ { "name": "mysql", "port": 3306, "status": "open", "version": "8.0.33" } ],
+      "ports": [ { "port": 3306, "status": "open", "service": "mysql", "version": "8.0.33" } ],
+      "screenshots": [],
+      "outgoingConnections": [
+        { "fromHostId": "db", "toHostId": "jump", "type": "outgoing", "cause": "Creds réutilisés ssh app", "method": "ssh", "timestamp": "2025-08-01T11:05:00Z" },
+        { "fromHostId": "db", "toHostId": "sql", "type": "outgoing", "cause": "Process ETL vers MSSQL", "method": "mssql", "timestamp": "2025-08-01T11:06:00Z" }
+      ],
+      "incomingConnections": [
+        { "fromHostId": "web", "toHostId": "db", "type": "incoming", "cause": "DB creds", "timestamp": "2025-08-01T10:45:00Z" }
+      ],
+      "discoveredAt": "2025-08-01T10:45:00Z",
+      "lastSeen": "2025-08-01T12:00:00Z",
+      "createdAt": "2025-08-01T10:45:00Z",
+      "updatedAt": "2025-08-01T12:00:00Z"
+    },
+    {
+      "id": "jump",
+      "ip": "10.10.11.10",
+      "hostname": "jump-host",
+      "os": "Windows Server 2019",
+      "status": "active",
+      "priority": "medium",
+      "compromiseLevel": "initial",
+      "category": "int",
+      "usernames": ["app"],
+      "passwords": ["Summer2024!"],
+      "hashes": [],
+      "vulnerabilities": [
+        { "id": "v4", "title": "Unquoted Service Path", "description": "Escalade locale possible", "severity": "High", "status": "open", "createdAt": "2025-08-01T11:10:00Z", "updatedAt": "2025-08-01T11:10:00Z" }
+      ],
+      "exploitationSteps": [
+        { "id": "s5", "title": "Abuse UAC", "description": "Service mal configuré", "severity": "High", "status": "completed", "command": "sc qc VulnerableSvc", "output": "BINARY_PATH_NAME: C:\\Program Files\\Vuln App\\app.exe", "createdAt": "2025-08-01T11:15:00Z", "updatedAt": "2025-08-01T11:15:00Z" }
+      ],
+      "tags": ["pivot"],
+      "notes": "Point de pivot interne",
+      "services": [ { "name": "rdp", "port": 3389, "status": "open", "version": "10.0" }, { "name": "smb", "port": 445, "status": "open", "version": "3.1.1" } ],
+      "ports": [ { "port": 3389, "status": "open", "service": "rdp", "version": "10.0" }, { "port": 445, "status": "open", "service": "smb", "version": "3.1.1" } ],
+      "screenshots": [],
+      "outgoingConnections": [
+        { "fromHostId": "jump", "toHostId": "ws1", "type": "outgoing", "cause": "RDP reuse creds", "method": "rdp", "timestamp": "2025-08-01T11:20:00Z" },
+        { "fromHostId": "jump", "toHostId": "fs", "type": "outgoing", "cause": "SMB administratif", "method": "smb", "timestamp": "2025-08-01T11:21:00Z" }
+      ],
+      "incomingConnections": [
+        { "fromHostId": "db", "toHostId": "jump", "type": "incoming", "cause": "Creds réutilisés ssh app", "timestamp": "2025-08-01T11:05:00Z" }
+      ],
+      "discoveredAt": "2025-08-01T11:00:00Z",
+      "lastSeen": "2025-08-01T12:00:00Z",
+      "createdAt": "2025-08-01T11:00:00Z",
+      "updatedAt": "2025-08-01T12:00:00Z"
+    },
+    {
+      "id": "ws1",
+      "ip": "10.10.11.20",
+      "hostname": "workstation-01",
+      "os": "Windows 10",
+      "status": "active",
+      "priority": "medium",
+      "compromiseLevel": "partial",
+      "category": "int",
+      "usernames": ["user1"],
+      "passwords": [],
+      "hashes": ["user1:1000:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::"],
+      "vulnerabilities": [
+        { "id": "v5", "title": "LSASS dump", "description": "Hash NTLM récupéré", "severity": "High", "status": "open", "createdAt": "2025-08-01T11:25:00Z", "updatedAt": "2025-08-01T11:25:00Z" }
+      ],
+      "exploitationSteps": [
+        { "id": "s6", "title": "Dump LSASS", "description": "Mimikatz sekurlsa::logonpasswords", "severity": "High", "status": "completed", "command": "mimikatz.exe", "output": "user1 NTLM: 31d6cfe0...", "createdAt": "2025-08-01T11:30:00Z", "updatedAt": "2025-08-01T11:30:00Z" }
+      ],
+      "tags": ["hashes"],
+      "notes": "Lateral possible via SMB",
+      "services": [ { "name": "smb", "port": 445, "status": "open", "version": "3.1.1" }, { "name": "winrm", "port": 5985, "status": "open", "version": "10.0" } ],
+      "ports": [ { "port": 445, "status": "open", "service": "smb", "version": "3.1.1" }, { "port": 5985, "status": "open", "service": "winrm", "version": "10.0" } ],
+      "screenshots": [],
+      "outgoingConnections": [
+        { "fromHostId": "ws1", "toHostId": "ad", "type": "outgoing", "cause": "Kerberoast → DA", "method": "ldap/kerberos", "timestamp": "2025-08-01T11:40:00Z" },
+        { "fromHostId": "ws1", "toHostId": "ws2", "type": "outgoing", "cause": "Lateral via SMB", "method": "smb", "timestamp": "2025-08-01T11:41:00Z" }
+      ],
+      "incomingConnections": [
+        { "fromHostId": "jump", "toHostId": "ws1", "type": "incoming", "cause": "RDP reuse creds", "timestamp": "2025-08-01T11:20:00Z" }
+      ],
+      "discoveredAt": "2025-08-01T11:20:00Z",
+      "lastSeen": "2025-08-01T12:00:00Z",
+      "createdAt": "2025-08-01T11:20:00Z",
+      "updatedAt": "2025-08-01T12:00:00Z"
+    },
+    {
+      "id": "ad",
+      "ip": "10.10.11.5",
+      "hostname": "corp-dc01",
+      "os": "Windows Server 2019 (AD DS)",
+      "status": "active",
+      "priority": "critical",
+      "compromiseLevel": "full",
+      "category": "int",
+      "usernames": ["Administrator"],
+      "passwords": [],
+      "hashes": [],
+      "vulnerabilities": [
+        { "id": "v6", "title": "DA via Kerberoast", "description": "Compte de service SPN faible", "severity": "Critical", "status": "open", "createdAt": "2025-08-01T11:45:00Z", "updatedAt": "2025-08-01T11:45:00Z" }
+      ],
+      "exploitationSteps": [
+        { "id": "s7", "title": "Kerberoast + Crack", "description": "Récup SPNs et crack hash", "severity": "Critical", "status": "completed", "command": "GetUserSPNs.py corp.local/user1:Passw0rd -dc-ip 10.10.11.5 --request", "output": "Found SPN svc/sql... cracked: SvcSQL:Summer2024!", "createdAt": "2025-08-01T11:50:00Z", "updatedAt": "2025-08-01T11:50:00Z" }
+      ],
+      "tags": ["domain-controller"],
+      "notes": "Objectif final atteint: DA",
+      "services": [ { "name": "kerberos", "port": 88, "status": "open", "version": "5" }, { "name": "ldap", "port": 389, "status": "open", "version": "Active Directory" }, { "name": "dns", "port": 53, "status": "open", "version": "Microsoft DNS" } ],
+      "ports": [ { "port": 88, "status": "open", "service": "kerberos", "version": "5" }, { "port": 389, "status": "open", "service": "ldap", "version": "Active Directory" }, { "port": 53, "status": "open", "service": "dns", "version": "Microsoft DNS" } ],
+      "screenshots": [],
+      "outgoingConnections": [
+        { "fromHostId": "ad", "toHostId": "fs", "type": "outgoing", "cause": "GPO scripts sur file server", "method": "smb", "timestamp": "2025-08-01T11:55:00Z" }
+      ],
+      "incomingConnections": [
+        { "fromHostId": "ws1", "toHostId": "ad", "type": "incoming", "cause": "Kerberoast → DA", "timestamp": "2025-08-01T11:40:00Z" }
+      ],
+      "discoveredAt": "2025-08-01T11:40:00Z",
+      "lastSeen": "2025-08-01T12:00:00Z",
+      "createdAt": "2025-08-01T11:40:00Z",
+      "updatedAt": "2025-08-01T12:00:00Z"
+    },
+    { "id": "ws2", "ip": "10.10.11.21", "hostname": "workstation-02", "os": "Windows 10", "status": "inactive", "priority": "low", "compromiseLevel": "none", "category": "int", "usernames": [], "passwords": [], "hashes": [], "vulnerabilities": [], "exploitationSteps": [], "tags": ["inventory"], "notes": "", "services": [], "ports": [], "screenshots": [], "outgoingConnections": [ { "fromHostId": "ws2", "toHostId": "fs", "type": "outgoing", "cause": "Partage utilisateurs", "method": "smb", "timestamp": "2025-08-01T11:42:00Z" } ], "incomingConnections": [ { "fromHostId": "ws1", "toHostId": "ws2", "type": "incoming", "cause": "Lateral via SMB", "timestamp": "2025-08-01T11:41:00Z" } ], "createdAt": "2025-08-01T11:00:00Z", "updatedAt": "2025-08-01T11:00:00Z" },
+    { "id": "fs", "ip": "10.10.11.40", "hostname": "fileserver", "os": "Windows Server 2016", "status": "active", "priority": "medium", "compromiseLevel": "none", "category": "int", "usernames": [], "passwords": [], "hashes": [], "vulnerabilities": [ { "id": "v7", "title": "SMB Signing Disabled", "description": "MITM possible", "severity": "Medium", "status": "open", "createdAt": "2025-08-01T11:10:00Z", "updatedAt": "2025-08-01T11:10:00Z" } ], "exploitationSteps": [], "tags": ["smb"], "notes": "", "services": [ { "name": "smb", "port": 445, "status": "open" } ], "ports": [ { "port": 445, "status": "open", "service": "smb" } ], "screenshots": [], "outgoingConnections": [ { "fromHostId": "fs", "toHostId": "sql", "type": "outgoing", "cause": "Sauvegardes vers SQL", "method": "mssql", "timestamp": "2025-08-01T11:58:00Z" } ], "incomingConnections": [ { "fromHostId": "web", "toHostId": "fs", "type": "incoming", "cause": "SMB share pour déploiement", "timestamp": "2025-08-01T10:47:00Z" }, { "fromHostId": "jump", "toHostId": "fs", "type": "incoming", "cause": "SMB administratif", "timestamp": "2025-08-01T11:21:00Z" }, { "fromHostId": "ws2", "toHostId": "fs", "type": "incoming", "cause": "Partage utilisateurs", "timestamp": "2025-08-01T11:42:00Z" }, { "fromHostId": "ad", "toHostId": "fs", "type": "incoming", "cause": "GPO scripts sur file server", "timestamp": "2025-08-01T11:55:00Z" } ], "createdAt": "2025-08-01T11:00:00Z", "updatedAt": "2025-08-01T11:00:00Z" },
+    { "id": "sql", "ip": "10.10.11.50", "hostname": "sql-server", "os": "Windows Server 2017", "status": "active", "priority": "high", "compromiseLevel": "none", "category": "int", "usernames": [], "passwords": [], "hashes": [], "vulnerabilities": [ { "id": "v8", "title": "MSSQL xp_cmdshell enabled", "description": "Code execution", "severity": "High", "status": "open", "createdAt": "2025-08-01T11:10:00Z", "updatedAt": "2025-08-01T11:10:00Z" } ], "exploitationSteps": [], "tags": ["mssql"], "notes": "", "services": [ { "name": "mssql", "port": 1433, "status": "open" } ], "ports": [ { "port": 1433, "status": "open", "service": "mssql" } ], "screenshots": [], "outgoingConnections": [ { "fromHostId": "sql", "toHostId": "ad", "type": "outgoing", "cause": "Service account SPN", "method": "kerberos/ldap", "timestamp": "2025-08-01T12:02:00Z" } ], "incomingConnections": [ { "fromHostId": "db", "toHostId": "sql", "type": "incoming", "cause": "Process ETL vers MSSQL", "timestamp": "2025-08-01T11:06:00Z" }, { "fromHostId": "fs", "toHostId": "sql", "type": "incoming", "cause": "Sauvegardes vers SQL", "timestamp": "2025-08-01T11:58:00Z" } ], "createdAt": "2025-08-01T11:00:00Z", "updatedAt": "2025-08-01T11:00:00Z" },
+    { "id": "mail", "ip": "10.10.11.60", "hostname": "mail", "os": "Linux", "status": "active", "priority": "medium", "compromiseLevel": "none", "category": "int", "usernames": [], "passwords": [], "hashes": [], "vulnerabilities": [ { "id": "v9", "title": "Open Relay", "description": "Misconfiguration", "severity": "Medium", "status": "open", "createdAt": "2025-08-01T11:10:00Z", "updatedAt": "2025-08-01T11:10:00Z" } ], "exploitationSteps": [], "tags": ["smtp"], "notes": "", "services": [ { "name": "smtp", "port": 25, "status": "open" } ], "ports": [ { "port": 25, "status": "open", "service": "smtp" } ], "screenshots": [], "outgoingConnections": [ { "fromHostId": "mail", "toHostId": "ws1", "type": "outgoing", "cause": "Notification mail user1", "method": "smtp", "timestamp": "2025-08-01T12:05:00Z" } ], "incomingConnections": [ { "fromHostId": "ext-gw", "toHostId": "mail", "type": "incoming", "cause": "SMTP vers mail", "timestamp": "2025-08-01T10:22:00Z" } ], "createdAt": "2025-08-01T11:00:00Z", "updatedAt": "2025-08-01T11:00:00Z" },
+    { "id": "sec", "ip": "10.10.11.70", "hostname": "soc", "os": "Linux", "status": "active", "priority": "low", "compromiseLevel": "none", "category": "int", "usernames": [], "passwords": [], "hashes": [], "vulnerabilities": [], "exploitationSteps": [], "tags": ["monitoring"], "notes": "", "services": [ { "name": "http", "port": 8080, "status": "open" } ], "ports": [ { "port": 8080, "status": "open", "service": "http" } ], "screenshots": [], "outgoingConnections": [ { "fromHostId": "sec", "toHostId": "ad", "type": "outgoing", "cause": "Agent LDAP de supervision", "method": "ldap", "timestamp": "2025-08-01T12:06:00Z" } ], "incomingConnections": [], "createdAt": "2025-08-01T11:00:00Z", "updatedAt": "2025-08-01T11:00:00Z" }
+  ]
+}

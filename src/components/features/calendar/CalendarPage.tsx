@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+// import { AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,12 +15,10 @@ import {
   Timer as TimerIcon,
   Edit,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
-// Import SortableJS (drag & drop)
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import Sortable from 'sortablejs';
 import { useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
@@ -311,9 +309,6 @@ export const CalendarPage: React.FC = () => {
   } | null>(null);
 
   // DnD refs
-  const boardRef = useRef<HTMLDivElement | null>(null);
-  const boardSortableRef = useRef<any>(null);
-  const ticketsSortableRefs = useRef<Record<number, any>>({});
   const ticketsTickerRef = useRef<number | null>(null);
 
   // Derived timer display
@@ -340,105 +335,7 @@ export const CalendarPage: React.FC = () => {
     saveTimerConfig(timerCfg);
   }, [timerCfg]);
 
-  // Setup SortableJS after render with proper cleanup
-  useEffect(() => {
-    // Destroy existing instances to avoid DOM conflicts
-    if (boardSortableRef.current) {
-      try { boardSortableRef.current.destroy(); } catch {}
-      boardSortableRef.current = null;
-    }
-    Object.values(ticketsSortableRefs.current).forEach((inst) => {
-      try { inst.destroy(); } catch {}
-    });
-    ticketsSortableRefs.current = {};
-
-    // Columns sorting
-    if (boardRef.current) {
-      boardSortableRef.current = new Sortable(boardRef.current, {
-        group: 'kanban-columns',
-        animation: 150,
-        handle: '.kanban-column-header',
-        fallbackOnBody: true,
-        onEnd: () => {
-          if (!boardRef.current) return;
-          const newOrderIds: number[] = Array.from(
-            boardRef.current.querySelectorAll('[data-column-id]')
-          ).map((el) => Number((el as HTMLElement).dataset.columnId));
-          const reordered: KanbanColumn[] = [];
-          newOrderIds.forEach((id) => {
-            const col = kanban.columns.find((c) => c.id === id);
-            if (col) reordered.push(col);
-          });
-          setKanban((prev) => ({ ...prev, columns: reordered }));
-        },
-      });
-    }
-
-    // Tickets sorting per column
-    kanban.columns.forEach((col) => {
-      const container = document.querySelector(
-        `[data-ticket-container="${col.id}"]`
-      ) as HTMLElement | null;
-      if (!container) return;
-      ticketsSortableRefs.current[col.id] = new Sortable(container, {
-        group: { name: 'kanban-tickets', pull: true, put: true },
-        animation: 150,
-        fallbackOnBody: true,
-        emptyInsertThreshold: 5,
-        filter: 'button, a, input, textarea, select',
-        preventOnFilter: true,
-        draggable: '[data-ticket-id]',
-        dataIdAttr: 'data-ticket-id',
-        onAdd: (evt: any) => {
-          const ticketId = Number(evt.item?.dataset?.ticketId);
-          const toColumnId = Number((evt.to as HTMLElement)?.dataset?.ticketContainer);
-          if (!ticketId || !toColumnId) return;
-          // Laisser Sortable finaliser le DOM avant que React ne re-render
-          requestAnimationFrame(() => {
-            setKanban((prev) => ({
-              ...prev,
-              tickets: prev.tickets.map((t) => {
-                if (t.id !== ticketId) return t;
-                const moved: KanbanTicket = {
-                  ...t,
-                  columnId: toColumnId,
-                  running: t.running && t.columnId === toColumnId ? t.running : false,
-                  startedAt: t.running && t.columnId === toColumnId ? t.startedAt : null,
-                };
-                return moved;
-              }),
-            }));
-          });
-        },
-        onEnd: (evt: any) => {
-          // Couvrir aussi les cas inter-listes où onAdd n'a pas été déclenché
-          const ticketId = Number(evt.item?.dataset?.ticketId);
-          const fromColumnId = Number((evt.from as HTMLElement)?.dataset?.ticketContainer);
-          const toColumnId = Number((evt.to as HTMLElement)?.dataset?.ticketContainer);
-          if (!ticketId || !toColumnId) return;
-          if (fromColumnId === toColumnId) return; // réordonnancement interne: pas d'ordre persistant ici
-          requestAnimationFrame(() => {
-            setKanban((prev) => ({
-              ...prev,
-              tickets: prev.tickets.map((t) => (t.id === ticketId ? { ...t, columnId: toColumnId, running: false, startedAt: null } : t)),
-            }));
-          });
-        },
-      });
-    });
-
-    return () => {
-      if (boardSortableRef.current) {
-        try { boardSortableRef.current.destroy(); } catch {}
-        boardSortableRef.current = null;
-      }
-      Object.values(ticketsSortableRefs.current).forEach((inst) => {
-        try { inst.destroy(); } catch {}
-      });
-      ticketsSortableRefs.current = {};
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kanban.columns.map((c) => c.id).join(',')]);
+  // Suppression de l'ancien système SortableJS pour éviter les conflits avec DnD
 
   // Tick d'affichage pour timers de tickets
   useEffect(() => {
@@ -722,6 +619,20 @@ export const CalendarPage: React.FC = () => {
   const [notes, setNotes] = useQuickNotes();
   const [todoInput, setTodoInput] = useState('');
 
+  // Reorder columns via arrows
+  const moveColumn = (columnId: number, direction: 'left' | 'right') => {
+    setKanban((prev) => {
+      const index = prev.columns.findIndex((c) => c.id === columnId);
+      if (index === -1) return prev;
+      const newIndex = direction === 'left' ? index - 1 : index + 1;
+      if (newIndex < 0 || newIndex >= prev.columns.length) return prev;
+      const newColumns = [...prev.columns];
+      const [col] = newColumns.splice(index, 1);
+      newColumns.splice(newIndex, 0, col);
+      return { ...prev, columns: newColumns };
+    });
+  };
+
   return (
     <div className="app-layout">
       {/* Header */}
@@ -791,9 +702,9 @@ export const CalendarPage: React.FC = () => {
       </InfoModal>
 
       {/* Main content */}
-      <div className="main-content">
+      <div className="main-content overflow-y-auto">
         <div className="content-area">
-          <div className="content-main p-6 overflow-y-auto max-h-[calc(100vh-200px)] space-y-6">
+          <div className="content-main p-6 space-y-6">
             {/* Timer configuration (déplacé ici) */}
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
@@ -937,33 +848,22 @@ export const CalendarPage: React.FC = () => {
             {/* Kanban board */}
             <DragDropContext
               onDragEnd={(result: DropResult) => {
-                if (!result.destination) return;
-                // Drag columns
-                if (result.type === 'COLUMN') {
-                  const newColumns = Array.from(kanban.columns);
-                  const [removed] = newColumns.splice(result.source.index, 1);
-                  newColumns.splice(result.destination.index, 0, removed);
-                  setKanban((prev) => ({ ...prev, columns: newColumns }));
-                  return;
-                }
-                // Drag tickets
+                const destination = result.destination;
+                if (!destination) return;
                 if (result.type === 'TICKET') {
                   const fromColId = Number(result.source.droppableId);
-                  const toColId = Number(result.destination.droppableId);
+                  const toColId = Number(destination.droppableId);
                   const ticketId = Number(result.draggableId);
                   setKanban((prev) => {
                     let newTickets = Array.from(prev.tickets);
-                    // Changement de colonne
                     if (fromColId !== toColId) {
                       newTickets = newTickets.map((t) => t.id === ticketId ? { ...t, columnId: toColId, running: false, startedAt: null } : t);
                     }
-                    // Réordonnancement dans la même colonne
                     const ticketsInCol = newTickets.filter((t) => t.columnId === toColId);
                     const idx = ticketsInCol.findIndex((t) => t.id === ticketId);
                     if (idx !== -1) {
                       ticketsInCol.splice(idx, 1);
-                      ticketsInCol.splice(result.destination.index, 0, newTickets.find((t) => t.id === ticketId)!);
-                      // Reconstruire la liste globale
+                      ticketsInCol.splice(destination.index, 0, newTickets.find((t) => t.id === ticketId)!);
                       newTickets = newTickets.filter((t) => t.columnId !== toColId).concat(ticketsInCol);
                     }
                     return { ...prev, tickets: newTickets };
@@ -971,261 +871,270 @@ export const CalendarPage: React.FC = () => {
                 }
               }}
             >
-              <Droppable droppableId="board" direction="horizontal" type="COLUMN">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className="flex gap-4 overflow-auto min-h-[500px]">
-                    {kanban.columns.map((col, colIdx) => (
-                      <Draggable draggableId={col.id.toString()} index={colIdx} key={col.id}>
-                        {(colProvided) => (
-                          <div
-                            ref={colProvided.innerRef}
-                            {...colProvided.draggableProps}
-                            {...colProvided.dragHandleProps}
-                            data-column-id={col.id}
-                            className="bg-slate-800 border border-slate-700 rounded-lg w-[320px] min-w-[320px] max-w-[320px] flex-shrink-0"
+              <div className="flex gap-4 overflow-auto min-h-[500px]">
+                {kanban.columns.map((col, colIdx) => (
+                  <div
+                    key={col.id}
+                    data-column-id={col.id}
+                    className="bg-slate-800 border border-slate-700 rounded-lg w-[320px] min-w-[320px] max-w-[320px] flex-shrink-0"
+                  >
+                    <div className="kanban-column-header p-4 border-b border-slate-700 bg-slate-800 rounded-t-lg">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-slate-100 font-semibold flex items-center gap-2">
+                            <span>{col.icon || '📋'}</span>
+                            <span>{col.title}</span>
+                            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                              {kanban.tickets.filter((t) => t.columnId === col.id).length}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => moveColumn(col.id, 'left')}
+                            disabled={colIdx === 0}
+                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 p-1 disabled:opacity-40"
+                            title="Déplacer la colonne à gauche"
                           >
-                            <div className="kanban-column-header p-4 border-b border-slate-700 bg-slate-800 rounded-t-lg">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <div className="text-slate-100 font-semibold flex items-center gap-2">
-                                    <span>{col.icon || '📋'}</span>
-                                    <span>{col.title}</span>
-                                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                                      {kanban.tickets.filter((t) => t.columnId === col.id).length}
+                            <ChevronLeft className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => moveColumn(col.id, 'right')}
+                            disabled={colIdx === kanban.columns.length - 1}
+                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 p-1 disabled:opacity-40"
+                            title="Déplacer la colonne à droite"
+                          >
+                            <ChevronRight className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addTicket(col.id)}
+                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 p-1"
+                            title="Ajouter un ticket"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditColumn(col)}
+                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 p-1"
+                            title="Renommer la colonne"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteColumn(col.id)}
+                            className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600 p-1"
+                            title="Supprimer la colonne"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    <Droppable droppableId={col.id.toString()} type="TICKET">
+                      {(ticketProvided) => (
+                        <div
+                          ref={ticketProvided.innerRef}
+                          {...ticketProvided.droppableProps}
+                          className="p-3 max-h-[600px] overflow-y-auto"
+                          data-ticket-container={col.id}
+                        >
+                          {kanban.tickets.filter((t) => t.columnId === col.id).map((t, tIdx) => (
+                            <Draggable draggableId={t.id.toString()} index={tIdx} key={t.id}>
+                              {(ticketDraggable) => (
+                                <div
+                                  ref={ticketDraggable.innerRef}
+                                  {...ticketDraggable.draggableProps}
+                                  {...ticketDraggable.dragHandleProps}
+                                  data-ticket-id={t.id}
+                                  className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 mb-2 hover:bg-slate-700/70 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between mb-1">
+                                    <h6 className="text-slate-100 font-medium text-sm">{t.title}</h6>
+                                    <span
+                                      className={`text-xs px-2 py-0.5 rounded-full ${
+                                        t.priority === 'critical'
+                                          ? 'bg-red-900/50 text-red-400 border border-red-700'
+                                          : t.priority === 'high'
+                                          ? 'bg-orange-900/50 text-orange-400 border border-orange-700'
+                                          : t.priority === 'medium'
+                                          ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700'
+                                          : 'bg-green-900/50 text-green-400 border border-green-700'
+                                      }`}
+                                    >
+                                      {priorityLabel(t.priority)}
                                     </span>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => addTicket(col.id)}
-                                    className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 p-1"
-                                    title="Ajouter un ticket"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => openEditColumn(col)}
-                                    className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 p-1"
-                                    title="Renommer la colonne"
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => deleteColumn(col.id)}
-                                    className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600 p-1"
-                                    title="Supprimer la colonne"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                            <Droppable droppableId={col.id.toString()} type="TICKET">
-                              {(ticketProvided) => (
-                                <div
-                                  ref={ticketProvided.innerRef}
-                                  {...ticketProvided.droppableProps}
-                                  className="p-3 max-h-[600px] overflow-y-auto"
-                                  data-ticket-container={col.id}
-                                >
-                                  {kanban.tickets.filter((t) => t.columnId === col.id).map((t, tIdx) => (
-                                    <Draggable draggableId={t.id.toString()} index={tIdx} key={t.id}>
-                                      {(ticketDraggable) => (
-                                        <div
-                                          ref={ticketDraggable.innerRef}
-                                          {...ticketDraggable.draggableProps}
-                                          {...ticketDraggable.dragHandleProps}
-                                          data-ticket-id={t.id}
-                                          className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 mb-2 hover:bg-slate-700/70 transition-colors"
-                                        >
-                                          <div className="flex items-start justify-between mb-1">
-                                            <h6 className="text-slate-100 font-medium text-sm">{t.title}</h6>
-                                            <span
-                                              className={`text-xs px-2 py-0.5 rounded-full ${
-                                                t.priority === 'critical'
-                                                  ? 'bg-red-900/50 text-red-400 border border-red-700'
-                                                  : t.priority === 'high'
-                                                  ? 'bg-orange-900/50 text-orange-400 border border-orange-700'
-                                                  : t.priority === 'medium'
-                                                  ? 'bg-yellow-900/50 text-yellow-400 border border-yellow-700'
-                                                  : 'bg-green-900/50 text-green-400 border border-green-700'
-                                              }`}
-                                            >
-                                              {priorityLabel(t.priority)}
-                                            </span>
-                                          </div>
-                                          {t.description && (
-                                            <p className="text-xs text-slate-300 mb-2 leading-relaxed">{t.description}</p>
-                                          )}
-                                          <div className="flex items-center justify-between text-xs text-slate-400">
-                                            <span>👤 {t.assignee || 'Non assigné'}</span>
-                                            <span>📅 {t.dueDate ? new Date(t.dueDate).toLocaleString('fr-FR') : 'Aucune'}</span>
-                                          </div>
-                                          <div className="flex items-center justify-between mt-2">
-                                            <div className="text-xs text-slate-300 font-mono">⏱ {ticketSpentDisplay(t)}{typeof t.estimateHours === 'number' ? ` / ~${t.estimateHours}h` : ''}</div>
-                                            <div className="flex items-center gap-2">
-                                              {t.running ? (
-                                                <Button variant="outline" size="sm" onClick={() => pauseTicketTimer(t.id)} className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1" title="Pause">
-                                                  <Pause className="w-3 h-3" />
-                                                </Button>
-                                              ) : (
-                                                <Button variant="outline" size="sm" onClick={() => startTicketTimer(t.id)} className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1" title="Démarrer">
-                                                  <Play className="w-3 h-3" />
-                                                </Button>
-                                              )}
-                                              <Button variant="outline" size="sm" onClick={() => resetTicketTimer(t.id)} className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1" title="Réinitialiser">
-                                                <RotateCcw className="w-3 h-3" />
-                                              </Button>
-                                            </div>
-                                          </div>
-                                          <div className="flex items-center gap-2 mt-2">
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => openEditTicket(t)}
-                                              className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1"
-                                            >
-                                              <Edit className="w-3 h-3" />
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => deleteTicket(t.id)}
-                                              className="bg-red-600 hover:bg-red-700 text-white p-1"
-                                            >
-                                              <X className="w-3 h-3" />
-                                            </Button>
-                                          </div>
-                                        </div>
+                                  {t.description && (
+                                    <p className="text-xs text-slate-300 mb-2 leading-relaxed">{t.description}</p>
+                                  )}
+                                  <div className="flex items-center justify-between text-xs text-slate-400">
+                                    <span>👤 {t.assignee || 'Non assigné'}</span>
+                                    <span>📅 {t.dueDate ? new Date(t.dueDate).toLocaleString('fr-FR') : 'Aucune'}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between mt-2">
+                                    <div className="text-xs text-slate-300 font-mono">⏱ {ticketSpentDisplay(t)}{typeof t.estimateHours === 'number' ? ` / ~${t.estimateHours}h` : ''}</div>
+                                    <div className="flex items-center gap-2">
+                                      {t.running ? (
+                                        <Button variant="outline" size="sm" onClick={() => pauseTicketTimer(t.id)} className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1" title="Pause">
+                                          <Pause className="w-3 h-3" />
+                                        </Button>
+                                      ) : (
+                                        <Button variant="outline" size="sm" onClick={() => startTicketTimer(t.id)} className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1" title="Démarrer">
+                                          <Play className="w-3 h-3" />
+                                        </Button>
                                       )}
-                                    </Draggable>
-                                  ))}
-                                  {ticketProvided.placeholder}
+                                      <Button variant="outline" size="sm" onClick={() => resetTicketTimer(t.id)} className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1" title="Réinitialiser">
+                                        <RotateCcw className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openEditTicket(t)}
+                                      className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => deleteTicket(t.id)}
+                                      className="bg-red-600 hover:bg-red-700 text-white p-1"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                               )}
-                            </Droppable>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+                            </Draggable>
+                          ))}
+                          {ticketProvided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
                   </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-          </div>
-        </div>
-      </div>
-
-      {/* Widgets de gestion du temps */}
-      <div className="mt-8 w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Pomodoro */}
-          <Card className="pomodoro-card border-slate-700 bg-slate-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="pomodoro-icon">🍅</span> Pomodoro Timer
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-2 items-center">
-                <div className="flex gap-2 mb-2">
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <span>Sessions :</span>
-                    <Input type="number" min={1} max={10} value={pomodoro.rounds} onChange={e => setPomodoroRounds(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" />
-                  </label>
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <span>Travail :</span>
-                    <Input type="number" min={1} max={120} value={pomodoro.work} onChange={e => setPomodoroWork(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" /> min</label>
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <span>Pause :</span>
-                    <Input type="number" min={1} max={60} value={pomodoro.break} onChange={e => setPomodoroBreak(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" /> min</label>
-                </div>
-                <div className="flex flex-col items-center gap-2 w-full">
-                  <div className="w-32 h-32 mb-2">
-                    <CircularProgressbar
-                      value={pomodoro.isWork ? (pomodoro.timeLeft / (pomodoro.work * 60)) * 100 : (pomodoro.timeLeft / (pomodoro.break * 60)) * 100}
-                      text={`${String(Math.floor(pomodoro.timeLeft/60)).padStart(2,'0')}:${String(pomodoro.timeLeft%60).padStart(2,'0')}`}
-                      styles={buildStyles({
-                        textColor: '#fff',
-                        pathColor: pomodoro.isWork ? '#22d3ee' : '#fbbf24',
-                        trailColor: '#334155',
-                        textSize: '1.5rem',
-                        pathTransitionDuration: 0.5,
-                      })}
-                      strokeWidth={10}
-                    />
-                  </div>
-                  <div className="pomodoro-status mt-2 text-lg font-semibold">
-                    Session {pomodoro.currentRound}/{pomodoro.rounds} - {pomodoro.isWork ? 'Travail' : 'Pause'}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {!pomodoro.isRunning ? (
-                    <Button onClick={startPomodoro} className="bg-green-600 hover:bg-green-700">▶️ Démarrer</Button>
-                  ) : (
-                    <Button onClick={pausePomodoro} className="bg-yellow-600 hover:bg-yellow-700">⏸️ Pause</Button>
-                  )}
-                  <Button onClick={resetPomodoro} className="bg-red-600 hover:bg-red-700">🔄 Reset</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* To-Do rapide */}
-          <Card className="todo-card border-slate-700 bg-slate-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><span className="todo-icon">📝</span> To-Do Rapide</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2 mb-2">
-                <Input value={todoInput} onChange={e => setTodoInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} placeholder="Nouvelle tâche..." className="flex-1 bg-slate-700 border border-slate-600 text-slate-100" />
-                <Button onClick={() => { if (todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} className="bg-blue-600 hover:bg-blue-700">Ajouter</Button>
-              </div>
-              <ul className="list-group space-y-2">
-                {todos.map((item, idx) => (
-                  <li key={idx} className="flex items-center justify-between bg-slate-700 border border-slate-600 rounded px-3 py-2">
-                    <span style={{ textDecoration: item.done ? 'line-through' : undefined, color: item.done ? '#888' : undefined }}>{item.text}</span>
-                    <div className="flex gap-1">
-                      <Button size="sm" className="bg-green-700 hover:bg-green-800" onClick={() => toggleTodo(idx)}>{item.done ? '↩️' : '✔️'}</Button>
-                      <Button size="sm" className="bg-red-700 hover:bg-red-800" onClick={() => deleteTodo(idx)}>🗑️</Button>
-                    </div>
-                  </li>
                 ))}
-              </ul>
-            </CardContent>
-          </Card>
-          {/* Stats & Notes */}
-          <Card className="stats-card border-slate-700 bg-slate-800 col-span-1 md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">📊 Statistiques de Productivité</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-6">
-                <div><b>Tickets terminés :</b> {kanban.tickets.filter(t => t.columnId === 3).length}</div>
-                <div><b>Temps total passé :</b> {(() => {
-                  const total = kanban.tickets.reduce((acc, t) => acc + (t.spentSeconds || 0) + (t.running && t.startedAt ? Math.floor((Date.now() - t.startedAt) / 1000) : 0), 0);
-                  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60);
-                  return `${h}h${m ? ` ${m}min` : ''}`;
-                })()}</div>
-                <div><b>To-Do complétées :</b> {todos.filter(t => t.done).length}/{todos.length}</div>
-                <div><b>Sessions Pomodoro terminées :</b> {pomodoro.currentRound - 1 + (pomodoro.isWork ? 0 : 1)}/{pomodoro.rounds}</div>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="notes-card border-slate-700 bg-slate-800 col-span-1 md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">🗒️ Notes Rapides</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="w-full min-h-[100px] bg-slate-700 border-slate-600 text-slate-100" placeholder="Écrivez vos notes ici..." />
-            </CardContent>
-          </Card>
+            </DragDropContext>
+
+            {/* Widgets de gestion du temps */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Pomodoro */}
+              <Card className="pomodoro-card border-slate-700 bg-slate-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="pomodoro-icon">🍅</span> Pomodoro Timer
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-2 items-center">
+                    <div className="flex gap-2 mb-2">
+                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <span>Sessions :</span>
+                        <Input type="number" min={1} max={10} value={pomodoro.rounds} onChange={e => setPomodoroRounds(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" />
+                      </label>
+                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <span>Travail :</span>
+                        <Input type="number" min={1} max={120} value={pomodoro.work} onChange={e => setPomodoroWork(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" /> min</label>
+                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <span>Pause :</span>
+                        <Input type="number" min={1} max={60} value={pomodoro.break} onChange={e => setPomodoroBreak(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" /> min</label>
+                    </div>
+                    <div className="flex flex-col items-center gap-2 w-full">
+                      <div className="w-32 h-32 mb-2 z-0">
+                        <CircularProgressbar
+                          value={pomodoro.isWork ? (pomodoro.timeLeft / (pomodoro.work * 60)) * 100 : (pomodoro.timeLeft / (pomodoro.break * 60)) * 100}
+                          text={`${String(Math.floor(pomodoro.timeLeft/60)).padStart(2,'0')}:${String(pomodoro.timeLeft%60).padStart(2,'0')}`}
+                          styles={buildStyles({
+                            textColor: '#fff',
+                            pathColor: pomodoro.isWork ? '#22d3ee' : '#fbbf24',
+                            trailColor: '#334155',
+                            textSize: '1.5rem',
+                            pathTransitionDuration: 0.5,
+                          })}
+                          strokeWidth={10}
+                        />
+                      </div>
+                      <div className="pomodoro-status mt-2 text-lg font-semibold">
+                        Session {pomodoro.currentRound}/{pomodoro.rounds} - {pomodoro.isWork ? 'Travail' : 'Pause'}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {!pomodoro.isRunning ? (
+                        <Button onClick={startPomodoro} className="bg-green-600 hover:bg-green-700">▶️ Démarrer</Button>
+                      ) : (
+                        <Button onClick={pausePomodoro} className="bg-yellow-600 hover:bg-yellow-700">⏸️ Pause</Button>
+                      )}
+                      <Button onClick={resetPomodoro} className="bg-red-600 hover:bg-red-700">🔄 Reset</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              {/* To-Do rapide */}
+              <Card className="todo-card border-slate-700 bg-slate-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><span className="todo-icon">📝</span> To-Do Rapide</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2 mb-2">
+                    <Input value={todoInput} onChange={e => setTodoInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} placeholder="Nouvelle tâche..." className="flex-1 bg-slate-700 border border-slate-600 text-slate-100" />
+                    <Button onClick={() => { if (todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} className="bg-blue-600 hover:bg-blue-700">Ajouter</Button>
+                  </div>
+                  <ul className="list-group space-y-2">
+                    {todos.map((item, idx) => (
+                      <li key={idx} className="flex items-center justify-between bg-slate-700 border border-slate-600 rounded px-3 py-2">
+                        <span style={{ textDecoration: item.done ? 'line-through' : undefined, color: item.done ? '#888' : undefined }}>{item.text}</span>
+                        <div className="flex gap-1">
+                          <Button size="sm" className="bg-green-700 hover:bg-green-800" onClick={() => toggleTodo(idx)}>{item.done ? '↩️' : '✔️'}</Button>
+                          <Button size="sm" className="bg-red-700 hover:bg-red-800" onClick={() => deleteTodo(idx)}>🗑️</Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+              {/* Stats & Notes */}
+              <Card className="stats-card border-slate-700 bg-slate-800 col-span-1 md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">📊 Statistiques de Productivité</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-6">
+                    <div><b>Tickets terminés :</b> {kanban.tickets.filter(t => t.columnId === 3).length}</div>
+                    <div><b>Temps total passé :</b> {(() => {
+                      const total = kanban.tickets.reduce((acc, t) => acc + (t.spentSeconds || 0) + (t.running && t.startedAt ? Math.floor((Date.now() - t.startedAt) / 1000) : 0), 0);
+                      const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60);
+                      return `${h}h${m ? ` ${m}min` : ''}`;
+                    })()}</div>
+                    <div><b>To-Do complétées :</b> {todos.filter(t => t.done).length}/{todos.length}</div>
+                    <div><b>Sessions Pomodoro terminées :</b> {pomodoro.currentRound - 1 + (pomodoro.isWork ? 0 : 1)}/{pomodoro.rounds}</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="notes-card border-slate-700 bg-slate-800 col-span-1 md:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">🗒️ Notes Rapides</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="w-full min-h-[100px] bg-slate-700 border-slate-600 text-slate-100" placeholder="Écrivez vos notes ici..." />
+                </CardContent>
+              </Card>
+            </div>
+
+      
+          </div>
         </div>
       </div>
 

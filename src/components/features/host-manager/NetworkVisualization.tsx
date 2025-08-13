@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Network } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { 
@@ -58,28 +58,28 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     const hostname = host.hostname?.toLowerCase() || '';
     
     if (os.includes('router') || hostname.includes('router') || hostname.includes('rt-')) {
-      return { type: 'router', icon: Router, color: '#8b5cf6', shape: 'diamond', size: 35 };
+      return { type: 'router', icon: Router, color: 'rgba(167,139,250,0.85)', shape: 'diamond', size: 35 };
     }
     if (os.includes('firewall') || hostname.includes('fw') || hostname.includes('pfsense')) {
-      return { type: 'firewall', icon: Shield, color: '#f59e0b', shape: 'triangle', size: 35 };
+      return { type: 'firewall', icon: Shield, color: 'rgba(251,191,36,0.85)', shape: 'triangle', size: 35 };
     }
     if (os.includes('mobile') || os.includes('android') || os.includes('ios')) {
-      return { type: 'mobile', icon: Smartphone, color: '#10b981', shape: 'circle', size: 25 };
+      return { type: 'mobile', icon: Smartphone, color: 'rgba(52,211,153,0.85)', shape: 'circle', size: 25 };
     }
     if (os.includes('database') || hostname.includes('db') || hostname.includes('sql')) {
-      return { type: 'database', icon: Database, color: '#3b82f6', shape: 'box', size: 30 };
+      return { type: 'database', icon: Database, color: 'rgba(96,165,250,0.85)', shape: 'box', size: 30 };
     }
     if (os.includes('windows') && (hostname.includes('ws') || hostname.includes('pc-'))) {
-      return { type: 'workstation', icon: Monitor, color: '#06b6d4', shape: 'circle', size: 30 };
+      return { type: 'workstation', icon: Monitor, color: 'rgba(34,211,238,0.85)', shape: 'circle', size: 30 };
     }
     if (os.includes('server') || hostname.includes('srv') || hostname.includes('dc-')) {
-      return { type: 'server', icon: Server, color: '#dc2626', shape: 'box', size: 35 };
+      return { type: 'server', icon: Server, color: 'rgba(147,197,253,0.85)', shape: 'box', size: 35 };
     }
     if (os.includes('linux') || os.includes('ubuntu') || os.includes('centos')) {
-      return { type: 'server', icon: Server, color: '#059669', shape: 'circle', size: 30 };
+      return { type: 'server', icon: Server, color: 'rgba(110,231,183,0.85)', shape: 'circle', size: 30 };
     }
     
-    return { type: 'unknown', icon: Globe, color: '#6b7280', shape: 'dot', size: 25 };
+    return { type: 'unknown', icon: Globe, color: 'rgba(148,163,184,0.85)', shape: 'dot', size: 25 };
   };
 
   // Obtenir la couleur basée sur la catégorie et le statut
@@ -88,13 +88,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     
     // Couleurs de priorité par catégorie
     const categoryColors: { [key: string]: string } = {
-      'critical': '#dc2626',
-      'high': '#ea580c', 
-      'medium': '#d97706',
-      'low': '#65a30d',
-      'info': '#2563eb',
-      'compromised': '#991b1b',
-      'target': '#7c2d12'
+      'critical': 'rgba(239,68,68,0.85)',
+      'high': 'rgba(245,158,11,0.85)', 
+      'medium': 'rgba(234,179,8,0.85)',
+      'low': 'rgba(34,197,94,0.85)',
+      'info': 'rgba(59,130,246,0.85)',
+      'compromised': 'rgba(220,38,38,0.85)',
+      'target': 'rgba(124,45,18,0.85)'
     };
     
     if (category && categoryColors[category.name.toLowerCase()]) {
@@ -115,6 +115,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     if (vulnCount > 0) return 'low-risk';
     return 'secure';
   };
+
+  const hostIdsSignature = useMemo(() => hosts.map(h => String(h.id)).sort().join(','), [hosts]);
+  const categoriesSignature = useMemo(() => categories.map(c => `${c.id}:${c.name}:${c.color || ''}`).sort().join(','), [categories]);
 
   useEffect(() => {
     if (!networkRef.current) return;
@@ -155,6 +158,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           `,
           shape: deviceType.shape,
           size: deviceType.size,
+          shapeProperties: {
+            borderRadius: 12,
+          },
           color: {
             background: nodeColor,
             border: borderColor,
@@ -182,9 +188,11 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             x: 2,
             y: 2
           },
+          widthConstraint: { minimum: 80, maximum: 220 },
+          margin: { top: 8, right: 10, bottom: 8, left: 10 },
           x: savedNode?.x || (index % 6) * 200 + 100,
           y: savedNode?.y || Math.floor(index / 6) * 150 + 100,
-          physics: false // pas de contraintes de physique; drag libre
+          physics: savedNode ? false : true
         };
       })
     );
@@ -199,40 +207,61 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           from: host.id,
           to: conn.toHostId,
           label: conn.cause || '',
-          color: '#3b82f6',
-          width: 4,
+          color: 'rgba(59,130,246,0.75)',
+          width: 3,
           arrows: 'to',
-          smooth: false,
+          smooth: { enabled: true, type: 'cubicBezier', roundness: 0.45 },
         });
       });
     });
     const edges = new DataSet(edgeList);
 
-    // Configuration du réseau (inchangée)
+    // Configuration du réseau
     const options = {
       nodes: {
         font: { size: 12, face: 'Inter, sans-serif', strokeWidth: 1, strokeColor: '#000000' },
         shadow: { enabled: true, color: 'rgba(0,0,0,0.2)', size: 10, x: 3, y: 3 },
         borderWidth: 2,
         borderWidthSelected: 4,
-        scaling: { min: 15, max: 50, label: { enabled: true, min: 10, max: 16 }},
+        scaling: { min: 20, max: 60, label: { enabled: true, min: 10, max: 16 }},
+        shapeProperties: { borderRadius: 12 },
+        chosen: {
+          node(values: any) {
+            values.borderWidth = 4;
+            values.shadow = true;
+          }
+        }
       },
       edges: {
         width: 3,
-        color: { color: '#3b82f6', highlight: '#1d4ed8', hover: '#60a5fa' },
+        color: { color: 'rgba(59,130,246,0.7)', highlight: 'rgba(29,78,216,0.95)', hover: 'rgba(96,165,250,0.95)' },
         arrows: { to: { enabled: true, scaleFactor: 1.2, type: 'arrow' } },
-        smooth: { enabled: true, type: 'continuous', roundness: 0.2 },
+        smooth: { enabled: true, type: 'dynamic', roundness: 0.6 },
         shadow: { enabled: true, color: 'rgba(59, 130, 246, 0.3)', size: 5, x: 2, y: 2 },
         selectionWidth: 5,
         hoverWidth: 5,
         physics: false,
-        chosen: { edge(values: any) { values.color = '#1d4ed8'; values.width = 4; values.shadow = true; }},
+        chosen: { edge(values: any) { values.color = 'rgba(29,78,216,0.95)'; values.width = 4; values.shadow = true; }},
+        font: { color: '#93c5fd', size: 10, face: 'Inter, sans-serif', strokeWidth: 2, strokeColor: '#0f172a', background: 'rgba(2,6,23,0.8)' },
       },
-      physics: { enabled: false },
+      physics: {
+        enabled: true,
+        stabilization: { enabled: true, iterations: 250, updateInterval: 25, fit: false },
+        solver: 'forceAtlas2Based',
+        forceAtlas2Based: {
+          gravitationalConstant: -40,
+          centralGravity: 0.02,
+          springLength: 180,
+          springConstant: 0.015,
+          damping: 0.4,
+          avoidOverlap: 1
+        }
+      },
       interaction: {
         dragNodes: true,
         dragView: true,
         zoomView: true,
+        zoomSpeed: 0.5,
         selectConnectedEdges: true,
         hover: true,
         hoverConnectedEdges: true,
@@ -240,14 +269,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         navigationButtons: true,
         keyboard: { enabled: true, speed: { x: 10, y: 10, zoom: 0.02 }, bindToWindow: false },
       },
-      layout: { improvedLayout: false },
+      layout: { improvedLayout: false, randomSeed: undefined },
+      autoResize: true,
       configure: { enabled: false },
     } as any;
 
     // Créer le réseau
     networkInstance.current = new Network(networkRef.current, { nodes, edges }, options);
-    // Désactiver tout recentrage automatique
-    try { (networkInstance.current as any).setOptions({ physics: { enabled: false }, layout: { improvedLayout: false } }); } catch {}
+    // Laisser la physique se stabiliser (pas de fit, pas de move)
+    try { (networkInstance.current as any).stabilize?.(); } catch {}
 
     // Gestionnaires d'événements
     networkInstance.current.on('click', (params) => {
@@ -282,6 +312,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       // Ne rien faire si l'utilisateur a juste déplacé la vue (aucun nœud sélectionné)
       if (!params || !params.nodes || params.nodes.length === 0) return;
       persistPositions(params.nodes);
+      // Ne pas recentrer ni animer après un drag — ne rien faire ici
     });
 
     // Exposer des helpers globaux (compat) — s'appuient sur le store
@@ -308,7 +339,14 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       return edgeList;
     };
 
-    networkInstance.current.on('stabilizationIterationsDone', () => { setConnectionCount(edgeList.length); });
+    networkInstance.current.on('stabilizationIterationsDone', () => {
+      setConnectionCount(edgeList.length);
+      try {
+        // Sauver positions et désactiver la physique pour garder une carte stable
+        persistPositions();
+        (networkInstance.current as any).setOptions({ physics: { enabled: false } });
+      } catch {}
+    });
 
     return () => {
       if (networkInstance.current) {
@@ -320,7 +358,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       delete (window as any).removeAllNetworkConnections;
       delete (window as any).getNetworkConnections;
     };
-  }, [hosts, categories, networkNodes, updateNetworkNode, onNodeSelect, showLabels]);
+  }, [hostIdsSignature, categoriesSignature, onNodeSelect, showLabels]);
 
   // Initialiser le compteur de connexions
   useEffect(() => {
@@ -353,6 +391,28 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         }
       });
     }
+  };
+
+  const autoSpace = () => {
+    if (!networkInstance.current) return;
+    try {
+      (networkInstance.current as any).setOptions({
+        physics: {
+          enabled: true,
+          stabilization: { enabled: true, iterations: 300, updateInterval: 25, fit: false },
+          solver: 'forceAtlas2Based',
+          forceAtlas2Based: {
+            gravitationalConstant: -40,
+            centralGravity: 0.02,
+            springLength: 180,
+            springConstant: 0.015,
+            damping: 0.4,
+            avoidOverlap: 1
+          }
+        }
+      });
+      (networkInstance.current as any).stabilize?.();
+    } catch {}
   };
 
   const resetLayout = () => {
@@ -394,6 +454,15 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 className="flex-1 bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
               >
                 <Eye className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={autoSpace}
+                className="flex-1 bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                title="Auto‑espace les nœuds"
+              >
+                <Activity className="w-4 h-4" />
               </Button>
               <Button
                 variant="outline"

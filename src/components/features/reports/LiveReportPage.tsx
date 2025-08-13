@@ -43,8 +43,9 @@ const LiveReportPage: React.FC = () => {
   const hostsByCategory = useMemo(() => {
     const map: Record<string, any[]> = {};
     categories.forEach(c => (map[c.id] = []));
+    map['uncategorized'] = [];
     hostsArray.forEach(h => {
-      const key = h.category || categories[0]?.id || 'default';
+      const key = h.category && categories.find(c => c.id === h.category) ? h.category : 'uncategorized';
       if (!map[key]) map[key] = [];
       map[key].push(h);
     });
@@ -74,7 +75,8 @@ const LiveReportPage: React.FC = () => {
   const toc = (): string[] => {
     const rows: string[] = [];
     rows.push(`## Sommaire`);
-    categories.forEach(cat => {
+    const allCats = [...categories, { id: 'uncategorized', name: 'Hors catégorie' } as any];
+    allCats.forEach(cat => {
       const catHosts = hostsByCategory[cat.id] || [];
       rows.push(`- [Zone: ${cat.name}](#zone-${cat.name.replace(/\s+/g,'-')})`);
       catHosts.forEach(h => {
@@ -104,7 +106,8 @@ const LiveReportPage: React.FC = () => {
     md.push(`## Topologie & Kill Chain (Synthèse)`);
     md.push(`La topologie s'appuie sur les connexions inter-hôtes documentées. Les pivots potentiels sont détaillés dans les sections hôtes lorsque des connexions sortantes sont observées.`);
 
-    categories.forEach(cat => {
+    const allCats = [...categories, { id: 'uncategorized', name: 'Hors catégorie' } as any];
+    allCats.forEach(cat => {
       const catHosts = hostsByCategory[cat.id] || [];
       if (catHosts.length === 0) return;
       md.push('');

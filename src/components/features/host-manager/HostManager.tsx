@@ -714,7 +714,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                           <p className="text-sm text-slate-400">{host.hostname || 'Sans nom'}</p>
                           <p className="text-xs text-slate-500">{host.os || 'Unknown OS'}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col md:flex-row items-end md:items-center gap-1 md:gap-2">
                           <span className={`px-2 py-1 text-xs rounded ${
                             host.status === 'active' ? 'bg-green-900/50 text-green-400 border border-green-700' :
                             host.status === 'compromised' ? 'bg-orange-900/50 text-orange-400 border border-orange-700' :
