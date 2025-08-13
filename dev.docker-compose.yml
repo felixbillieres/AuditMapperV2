@@ -1,0 +1,12 @@
+name: "AuditMapperV2"
+services:
+    dev:
+        build:
+            context: .
+            target: dev
+        ports:
+            - "127.0.0.1:3000:3000"
+        volumes:
+            - .:/opt/auditmapper
+        environment:
+            - NODE_ENV=development
