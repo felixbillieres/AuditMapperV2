@@ -683,6 +683,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 categories={categories}
                 onNodeSelect={handleHostSelect}
                 selectedHost={selectedHost}
+                uiRightOffset={16}
               />
               
               {/* Fullscreen Toggle */}
@@ -784,7 +785,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="fixed inset-0 z-50 bg-slate-900"
           >
             <div className="h-full relative">
-              <div className="absolute top-4 right-4 z-10 flex gap-2">
+              <div className="absolute top-4 right-4 z-20 flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -800,7 +801,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 categories={categories}
                 onNodeSelect={handleHostSelect}
                 selectedHost={selectedHost}
-
+                uiRightOffset={networkFullscreen ? 120 : 16}
               />
             </div>
           </motion.div>

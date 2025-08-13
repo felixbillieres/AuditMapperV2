@@ -26,6 +26,7 @@ interface NetworkVisualizationProps {
   categories: Category[];
   onNodeSelect?: (host: Host) => void;
   selectedHost?: Host | null;
+  uiRightOffset?: number; // Décalage des éléments en haut à droite (px)
 }
 
 interface DeviceType {
@@ -41,6 +42,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   categories,
   onNodeSelect,
   selectedHost,
+  uiRightOffset,
 }) => {
   const networkRef = useRef<HTMLDivElement>(null);
   const networkInstance = useRef<Network | null>(null);
@@ -485,7 +487,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       {/* Légende */}
       {showLegend && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-4 z-10" style={{ right: uiRightOffset ?? 16 }}>
           <div className="bg-slate-800/95 backdrop-blur-md rounded-lg p-4 border border-slate-700 shadow-lg max-w-xs">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-slate-200 flex items-center gap-2">
@@ -557,7 +559,8 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           variant="outline"
           size="sm"
           onClick={() => setShowLegend(true)}
-          className="absolute top-4 right-4 z-10 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
+          className="absolute top-4 z-10 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
+          style={{ right: uiRightOffset ?? 16 }}
         >
           <Settings className="w-4 h-4" />
         </Button>
