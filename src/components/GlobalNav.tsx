@@ -53,7 +53,16 @@ export const GlobalNav: React.FC = () => {
                 <img src="/logo.png" className="w-8 h-8 rounded" />
                 <div className="text-slate-100 font-semibold">Navigation centrale</div>
               </div>
-              <button className="px-3 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700" onClick={()=>setOpen(false)}>Fermer</button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-3 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700"
+                  onClick={() => { navigate('/'); setOpen(false); }}
+                  title="Accueil"
+                >
+                  <Home className="inline-block w-4 h-4 mr-1" /> Accueil
+                </button>
+                <button className="px-3 py-1 rounded bg-slate-800 text-slate-200 border border-slate-600 hover:bg-slate-700" onClick={()=>setOpen(false)}>Fermer</button>
+              </div>
             </div>
             <div className="p-6 grid md:grid-cols-2 gap-6 relative">
               <img src="/4.png" alt="easter" className="hidden md:block opacity-10 absolute -right-6 -bottom-6 w-72 h-72 pointer-events-none select-none" />

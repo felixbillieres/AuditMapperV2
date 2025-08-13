@@ -799,9 +799,9 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               <NetworkVisualization
                 hosts={filteredHosts}
                 categories={categories}
-                onNodeSelect={handleHostSelect}
+                onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
                 selectedHost={selectedHost}
-                uiRightOffset={networkFullscreen ? 120 : 16}
+                uiRightOffset={120}
               />
             </div>
           </motion.div>

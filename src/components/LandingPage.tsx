@@ -416,11 +416,7 @@ const LandingPage: React.FC = () => {
                 <div className="flex flex-col md:flex-row items-center gap-8 mb-8">
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-lg opacity-50"></div>
-                    <img 
-                      src="https://felixbillieres.github.io/assets/images/pfp.png" 
-                      alt="Elliot Belt" 
-                      className="relative w-24 h-24 rounded-full object-cover"
-                    />
+                    <img src="/pfp.jpg" alt="Elliot Belt" className="relative w-24 h-24 rounded-full object-cover" />
                   </div>
                   <div className="text-center md:text-left">
                     <h3 className="text-2xl font-bold text-white mb-2">Elliot Belt</h3>

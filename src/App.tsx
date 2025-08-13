@@ -16,50 +16,30 @@ import StandalonePlaygroundPage from '@/components/features/security-lab/HTBLabP
 // Removed AdKerberosCanvasPage import
 
 const App: React.FC = () => {
+  // Thème unique (sombre)
+
   return (
     <div className="min-h-screen">
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/host-manager" element={
-          <div className="min-h-screen bg-dark-950 text-dark-100">
-            <HostManager />
-          </div>
-        } />
+        <Route path="/host-manager" element={<HostManager />} />
         <Route path="/config-generator" element={<ConfigGeneratorPage />} />
         {/* <Route path="/template-generator" element={<TemplateGeneratorPage />} /> */}
         <Route path="/standalone-playground" element={<StandalonePlaygroundPage />} />
-        <Route path="/calendar" element={
-          <div className="min-h-screen bg-dark-950 text-dark-100">
-            <CalendarPage />
-          </div>
-        } />
-        <Route path="/file-transfer" element={
-          <div className="min-h-screen bg-dark-950 text-dark-100">
-            <FileTransferPage />
-          </div>
-        } />
-        <Route path="/pivot-master" element={
-          <div className="min-h-screen bg-dark-950 text-dark-100">
-            <PivotMasterPage />
-          </div>
-        } />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/file-transfer" element={<FileTransferPage />} />
+        <Route path="/pivot-master" element={<PivotMasterPage />} />
         <Route path="/grep-master" element={<GrepMasterPage />} />
-        <Route path="/report" element={
-          <div className="min-h-screen bg-dark-950 text-dark-100">
-            <LiveReportPage />
-          </div>
-        } />
-        <Route path="/privesc" element={
-          <div className="min-h-screen bg-dark-950 text-dark-100">
-            <PrivescPage />
-          </div>
-        } />
+        <Route path="/report" element={<LiveReportPage />} />
+        <Route path="/privesc" element={<PrivescPage />} />
         <Route path="/admr" element={<ADMRPage />} />
         {/* /ad-kerberos route removed */}
         {/* ADMR routes removed */}
         {/* Add more routes as needed */}
       </Routes>
       <GlobalNav />
+
+      {/* Theme toggle retiré */}
     </div>
   );
 };
