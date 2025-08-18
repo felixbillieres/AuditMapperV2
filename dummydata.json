@@ -13,7 +13,7 @@
     { "id": "dmz", "name": "DMZ", "description": "Zone démilitarisée", "color": "#f59e0b", "icon": "Shield", "createdAt": "2025-08-01T10:00:00Z", "updatedAt": "2025-08-01T10:00:00Z" },
     { "id": "int", "name": "Interne", "description": "Réseau interne", "color": "#34d399", "icon": "Server", "createdAt": "2025-08-01T10:00:00Z", "updatedAt": "2025-08-01T10:00:00Z" }
   ],
-  "networkNodes": {
+  "networkNodes": {s
     "ext-gw": { "x": 200, "y": 80 },
     "web": { "x": 400, "y": 180 },
     "db": { "x": 720, "y": 420 },

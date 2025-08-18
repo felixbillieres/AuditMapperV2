@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
 import { Host, Category, HostFilters } from '@/types';
+import { migrateAllHosts as migrateAllHostsUtil, migrateHost } from '@/utils/migrations';
 
 interface NetworkNodeData {
   x: number;
@@ -42,6 +43,7 @@ interface HostState {
   clearAllData: () => void;
 
   ensureUniqueCategoryIds: () => void;
+  migrateAllHosts: () => void;
 }
 
 export const useHostStore = create<HostState>()(
@@ -62,19 +64,44 @@ export const useHostStore = create<HostState>()(
 
         // Host actions
         addHost: (hostData) => {
-          const newHost: Host = {
-            id: Date.now().toString(),
+          // Generate truly unique ID (same logic as categories)
+          const uniqueId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+            ? (crypto as any).randomUUID()
+            : `${Date.now()}_${Math.floor(Math.random()*1e9)}`;
+          console.log(`Store addHost: Creating host ${hostData.ip} with ID ${uniqueId}`);
+          const baseHost: Host = {
+            id: uniqueId,
             ...hostData,
+            // Ensure all arrays are initialized
+            usernames: hostData.usernames || [],
+            passwords: hostData.passwords || [],
+            hashes: hostData.hashes || [],
+            credentials: hostData.credentials || [],
+            vulnerabilities: hostData.vulnerabilities || [],
+            exploitationSteps: hostData.exploitationSteps || [],
+            screenshots: hostData.screenshots || [],
+            services: hostData.services || [],
+            ports: hostData.ports || [],
+            tags: hostData.tags || [],
+            outgoingConnections: hostData.outgoingConnections || [],
+            incomingConnections: hostData.incomingConnections || [],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
           
-          set((state) => ({
-            hosts: {
-              ...state.hosts,
-              [newHost.id]: newHost,
-            },
-          }));
+          // Migrate the host to ensure data consistency
+          const newHost = migrateHost(baseHost);
+          
+          set((state) => {
+            const newState = {
+              hosts: {
+                ...state.hosts,
+                [newHost.id]: newHost,
+              },
+            };
+            console.log(`Store addHost: Host ${newHost.ip} added. Total hosts now: ${Object.keys(newState.hosts).length}`);
+            return newState;
+          });
         },
 
         updateHost: (hostId, updates) => {
@@ -82,14 +109,19 @@ export const useHostStore = create<HostState>()(
             const host = state.hosts[hostId];
             if (!host) return state;
 
+            const updatedHost = {
+              ...host,
+              ...updates,
+              updatedAt: new Date().toISOString(),
+            };
+
+            // Migrate the updated host to ensure data consistency
+            const migratedHost = migrateHost(updatedHost);
+
             return {
               hosts: {
                 ...state.hosts,
-                [hostId]: {
-                  ...host,
-                  ...updates,
-                  updatedAt: new Date().toISOString(),
-                },
+                [hostId]: migratedHost,
               },
             };
           });
@@ -178,9 +210,14 @@ export const useHostStore = create<HostState>()(
 
         // Data management
         importData: (data) => {
+          // Migrate hosts during import to ensure data consistency
+          const hosts = data.hosts || {};
+          const migratedHosts = migrateAllHostsUtil(hosts);
+          
           set({
-            hosts: data.hosts || {},
+            hosts: migratedHosts,
             categories: data.categories || [],
+            networkNodes: data.networkNodes || {},
           });
         },
 
@@ -189,6 +226,15 @@ export const useHostStore = create<HostState>()(
           return {
             hosts: state.hosts,
             categories: state.categories,
+            networkNodes: state.networkNodes,
+            filters: state.filters,
+            viewMode: state.viewMode,
+            metadata: {
+              exportedAt: new Date().toISOString(),
+              version: '2.0.0',
+              totalHosts: Object.keys(state.hosts).length,
+              totalCategories: state.categories.length,
+            },
           };
         },
 
@@ -255,12 +301,22 @@ export const useHostStore = create<HostState>()(
           });
           set({ categories, hosts });
         },
+
+        // Migration of all hosts to latest format
+        migrateAllHosts: () => {
+          const state = get();
+          const migratedHosts = migrateAllHostsUtil(state.hosts);
+          set({ hosts: migratedHosts });
+        },
       }),
       {
         name: 'auditmapper-hosts',
         partialize: (state) => ({
           hosts: state.hosts,
           categories: state.categories,
+          networkNodes: state.networkNodes,
+          filters: state.filters,
+          viewMode: state.viewMode,
         }),
       }
     ),

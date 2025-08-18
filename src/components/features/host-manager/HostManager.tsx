@@ -880,10 +880,27 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 <div />
                 <div className="flex gap-2">
                   <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=>{setBulkText(''); setBulkPreview([]);}}>Effacer</Button>
-                  <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=>{ const parsed = parseHostsFromText(bulkText); setBulkPreview(parsed); }}>Parser</Button>
+                  <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=>{ 
+                    const parsed = parseHostsFromText(bulkText); 
+                    setBulkPreview(parsed); 
+                    if (parsed.length === 0) {
+                      alert('Aucun hôte détecté. Vérifiez que le format du texte est correct (Nmap, NetExec, etc.)');
+                    }
+                  }}>Parser</Button>
                   <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
-                    if (!bulkPreview.length) { const parsed = parseHostsFromText(bulkText); setBulkPreview(parsed); if (!parsed.length) { alert('Rien de détecté'); return; }}
-                    (bulkPreview.length ? bulkPreview : parseHostsFromText(bulkText)).forEach((h) => {
+                    // Toujours parser le texte pour obtenir les résultats les plus récents
+                    const currentParsed = bulkPreview.length > 0 ? bulkPreview : parseHostsFromText(bulkText);
+                    if (!currentParsed.length) { 
+                      alert('Aucun hôte détecté dans le texte. Vérifiez le format.'); 
+                      return; 
+                    }
+                    // Mettre à jour la preview si nécessaire
+                    if (!bulkPreview.length) {
+                      setBulkPreview(currentParsed);
+                    }
+                    console.log(`Creating ${currentParsed.length} hosts:`, currentParsed.map(h => h.ip));
+                    currentParsed.forEach((h, index) => {
+                      console.log(`Adding host ${index + 1}/${currentParsed.length}: ${h.ip} (${h.hostname})`);
                       addHost({
                         ip: h.ip,
                         hostname: h.hostname || '',

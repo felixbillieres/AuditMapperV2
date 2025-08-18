@@ -20,9 +20,12 @@ export interface Host {
   priority: 'low' | 'medium' | 'high' | 'critical';
   compromiseLevel: 'none' | 'initial' | 'partial' | 'full';
   category?: string;
+  // Legacy credentials format (still supported for backward compatibility)
   usernames: string[];
   passwords: string[];
   hashes: string[];
+  // New structured credentials format
+  credentials: Credential[];
   vulnerabilities: Vulnerability[];
   exploitationSteps: ExploitationStep[];
   tags: string[];
@@ -68,10 +71,17 @@ export interface Vulnerability {
 
 export interface Credential {
   id: string;
-  type: 'username' | 'password' | 'hash';
-  value: string;
+  type: 'username' | 'password' | 'hash' | 'ssh_key' | 'token' | 'cookie' | 'other';
+  username?: string;
+  password?: string;
+  hash?: string;
+  domain?: string;
+  comment?: string;
   source?: string;
+  isValid?: boolean;
+  lastTested?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Screenshot {

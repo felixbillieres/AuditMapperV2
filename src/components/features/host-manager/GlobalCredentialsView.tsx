@@ -31,38 +31,75 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
   const allCredentials = React.useMemo(() => {
     const hostArray = Object.values(hosts);
     const credentials: Array<{
-      type: 'username' | 'password' | 'hash';
+      type: 'username' | 'password' | 'hash' | 'ssh_key' | 'token' | 'cookie' | 'other';
       value: string;
       hostIp: string;
       hostname?: string;
+      domain?: string;
+      comment?: string;
+      isValid?: boolean;
+      source?: string;
     }> = [];
 
     hostArray.forEach(host => {
-      host.usernames?.forEach(username => {
-        credentials.push({
-          type: 'username',
-          value: username,
-          hostIp: host.ip,
-          hostname: host.hostname,
+      // Nouveau format structuré
+      if (host.credentials && host.credentials.length > 0) {
+        host.credentials.forEach(cred => {
+          const value = cred.username || cred.password || cred.hash || '';
+          if (value) {
+            credentials.push({
+              type: cred.type,
+              value: value,
+              hostIp: host.ip,
+              hostname: host.hostname,
+              domain: cred.domain,
+              comment: cred.comment,
+              isValid: cred.isValid,
+              source: cred.source,
+            });
+          }
         });
+      }
+
+      // Format legacy pour compatibilité
+      host.usernames?.forEach(username => {
+        // Éviter les doublons si déjà dans le nouveau format
+        const exists = credentials.some(c => c.value === username && c.hostIp === host.ip);
+        if (!exists) {
+          credentials.push({
+            type: 'username',
+            value: username,
+            hostIp: host.ip,
+            hostname: host.hostname,
+            source: 'legacy',
+          });
+        }
       });
 
       host.passwords?.forEach(password => {
-        credentials.push({
-          type: 'password',
-          value: password,
-          hostIp: host.ip,
-          hostname: host.hostname,
-        });
+        const exists = credentials.some(c => c.value === password && c.hostIp === host.ip);
+        if (!exists) {
+          credentials.push({
+            type: 'password',
+            value: password,
+            hostIp: host.ip,
+            hostname: host.hostname,
+            source: 'legacy',
+          });
+        }
       });
 
       host.hashes?.forEach(hash => {
-        credentials.push({
-          type: 'hash',
-          value: hash,
-          hostIp: host.ip,
-          hostname: host.hostname,
-        });
+        const exists = credentials.some(c => c.value === hash && c.hostIp === host.ip);
+        if (!exists) {
+          credentials.push({
+            type: 'hash',
+            value: hash,
+            hostIp: host.ip,
+            hostname: host.hostname,
+            source: 'legacy',
+          });
+        }
       });
     });
 
@@ -81,13 +118,17 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
     usernames: filteredCredentials.filter(c => c.type === 'username'),
     passwords: filteredCredentials.filter(c => c.type === 'password'),
     hashes: filteredCredentials.filter(c => c.type === 'hash'),
+    ssh_keys: filteredCredentials.filter(c => c.type === 'ssh_key'),
+    tokens: filteredCredentials.filter(c => c.type === 'token'),
+    cookies: filteredCredentials.filter(c => c.type === 'cookie'),
+    other: filteredCredentials.filter(c => c.type === 'other'),
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
-  const copyAllByType = (type: 'usernames' | 'passwords' | 'hashes') => {
+  const copyAllByType = (type: keyof typeof credentialsByType) => {
     const values = credentialsByType[type].map(c => c.value).join('\n');
     navigator.clipboard.writeText(values);
   };

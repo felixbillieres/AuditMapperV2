@@ -35,11 +35,14 @@ export const HostForm: React.FC<HostFormProps> = ({
     e.preventDefault();
     onSubmit({
       ...formData,
-      services: [],
-      vulnerabilities: [],
-      credentials: [],
-      screenshots: [],
-      exploitationSteps: [],
+      services: host?.services || [],
+      vulnerabilities: host?.vulnerabilities || [],
+      credentials: host?.credentials || [],
+      screenshots: host?.screenshots || [],
+      exploitationSteps: host?.exploitationSteps || [],
+      ports: host?.ports || [],
+      outgoingConnections: host?.outgoingConnections || [],
+      incomingConnections: host?.incomingConnections || [],
     });
   };
 

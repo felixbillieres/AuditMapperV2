@@ -2,12 +2,14 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 
 export type HTBService = {
-  port: number;
+  port: string;
   proto: 'tcp' | 'udp';
   service: string;
   version?: string;
   notes?: string;
   notesPages?: string[];
+  pageNames?: string[]; // Noms personnalisés pour les pages
+  pageNotes?: string[]; // Notes pour chaque page
   images?: string[]; // IndexedDB ids
 };
 
@@ -25,6 +27,18 @@ export type ExploitLogEntry = {
   result?: string;
 };
 
+export type ServiceExploit = {
+  id: string;
+  servicePort: string;
+  serviceProto: 'tcp' | 'udp';
+  serviceName: string;
+  serviceVersion?: string;
+  exploitType: string;
+  details: string;
+  commands: string;
+  status: 'testing' | 'working' | 'failed';
+};
+
 export type HTBProject = {
   id: string;
   name: string;
@@ -33,7 +47,8 @@ export type HTBProject = {
   htbUrl?: string;
   avatarUrl?: string;
   avatarDataUrl?: string;
-  difficultyLabel?: string;
+  difficultyLabel?: 'Easy' | 'Medium' | 'Hard' | 'Insane';
+  platform?: 'HackTheBox' | 'Offsec' | 'TryHackMe' | 'VulnLab' | 'Autre';
   summary?: string;
   createdAt: string;
   updatedAt: string;
@@ -56,12 +71,13 @@ export type HTBProject = {
   services: HTBService[];
   // Initial access
   potentialVectors: { label: string; level: 'red' | 'yellow' | 'green'; note?: string }[];
+  serviceExploits: ServiceExploit[];
   usernames: string[];
   passwords: string[];
   hashes: string[];
   exploitLog: ExploitLogEntry[];
   // Privesc
-  privescChecklist: { id: string; label: string; done: boolean }[];
+  privescChecklist: { id: string; text: string; status: 'todo' | 'done' }[];
   // Post-exploitation
   lateralMoves: { id: string; target: string; method?: string; note?: string }[];
   persistenceNotes: string;
@@ -82,7 +98,7 @@ export type HTBProfile = {
 
 type HTBState = {
   profile: HTBProfile;
-  addProject: (data: Partial<HTBProject>) => string;
+  addProject: (data: Partial<HTBProject> & { url?: string }) => string;
   updateProject: (projectId: string, updates: Partial<HTBProject>) => void;
   deleteProject: (projectId: string) => void;
   selectProject: (projectId?: string) => void;
@@ -116,6 +132,8 @@ export const useHTBStore = create<HTBState>()(
             name: data.name || 'Nouvelle Box',
             ip: data.ip || '',
             os: data.os || '',
+            platform: data.platform || 'HackTheBox',
+            difficultyLabel: data.difficultyLabel || 'Medium',
             createdAt: now,
             updatedAt: now,
             progress: { recon: false, initialAccess: false, privesc: false, root: false },
@@ -127,6 +145,7 @@ export const useHTBStore = create<HTBState>()(
             nmapRaw: '',
             services: [],
             potentialVectors: [],
+            serviceExploits: [],
             usernames: [],
             passwords: [],
             hashes: [],

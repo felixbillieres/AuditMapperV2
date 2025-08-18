@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '../../ui/button';
-
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Download, Upload } from 'lucide-react';
 import { useHTBStore, type HTBService } from '../../../stores/htbStore';
 import { Dashboard } from './Dashboard';
@@ -73,7 +73,7 @@ function getDifficultyColor(difficulty: string): string {
 
 export default function StandalonePlaygroundPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { profile, exportProfile, importProfile, importProject } = useHTBStore();
+  const { profile, addProject, updateProject, deleteProject, selectProject, exportProfile, importProfile, exportProject, importProject, closeProject } = useHTBStore();
   const projectParam = searchParams.get('project') || undefined;
   const selected = projectParam ? profile.projects[projectParam] : undefined;
   const [detailTab, setDetailTab] = useState<'recon'|'initial'|'privesc'|'post'|'writeup'>('recon');
@@ -100,7 +100,7 @@ export default function StandalonePlaygroundPage() {
   
   // Service form
   const [showAddService, setShowAddService] = useState(false);
-  const [newService, setNewService] = useState<{ port: string; proto: 'tcp' | 'udp'; service: string; version: string }>({ port: '', proto: 'tcp', service: '', version: '' });
+  const [newService, setNewService] = useState({ port: '', proto: 'tcp', service: '', version: '' });
 
   // Fonctions utilitaires
   const resetCreateForm = () => {
@@ -112,7 +112,6 @@ export default function StandalonePlaygroundPage() {
 
   // Données pour le dashboard
   const projects = Object.values(profile.projects).filter(p => !p.pwnedAt);
-  const allProjects = Object.values(profile.projects);
   const stats = {
     total: Object.keys(profile.projects).length,
     pwned: Object.values(profile.projects).filter(p => p.pwnedAt).length,
@@ -298,7 +297,6 @@ ${step.result ? `**Résultat**:\n\`\`\`\n${step.result}\n\`\`\`` : ''}
               {!selected && (
                 <Dashboard 
                   projects={projects}
-                  allProjects={allProjects}
                   stats={stats}
                   getDifficultyColor={getDifficultyColor}
                   onSetCreateModalOpen={setCreateModalOpen}
