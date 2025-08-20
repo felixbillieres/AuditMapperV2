@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
@@ -7,6 +7,54 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Trophy, ListTodo, Timer, Trash2, Download, Upload, Search, Filter } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useHTBStore, type HTBProject } from '../../../stores/htbStore';
+
+// Composant pour les quotes aléatoires
+const QuoteRotator: React.FC = () => {
+  const quotes = [
+    "La douleur que tu ressens aujourd'hui sera ta force demain. — Anonyme",
+    "La qualité n'est jamais un accident ; c'est toujours le résultat d'un effort intelligent. — John Ruskin",
+    "Ce que tu penses de toi-même est bien plus important que ce que les autres pensent de toi. — Sénèque",
+    "Celui qui déplace une montagne commence par déplacer de petites pierres. — Confucius",
+    "La discipline est le pont entre les objectifs et l'accomplissement. — Jim Rohn",
+    "Le succès, c'est la somme de petits efforts répétés jour après jour. — Robert Collier",
+    "Le vrai voyage d'exploration ne consiste pas à chercher de nouveaux paysages, mais à avoir de nouveaux yeux. — Marcel Proust",
+    "L'excellence n'est pas un acte, mais une habitude. — Aristote",
+    "Si tu veux quelque chose que tu n'as jamais eu, fais quelque chose que tu n'as jamais fait. — Thomas Jefferson",
+    "Tu n'échoues jamais tant que tu n'abandonnes pas. — Anonyme",
+    "La perfection n'est pas atteignable, mais en la poursuivant, on peut atteindre l'excellence. — Vince Lombardi",
+    "Le travail bat le talent quand le talent ne travaille pas assez. — Tim Notke",
+    "Maîtriser les autres, c'est la force. Se maîtriser soi-même, c'est le pouvoir. — Lao Tseu",
+    "Visez la lune. Même si vous la manquez, vous atteindrez les étoiles. — Norman Vincent Peale",
+    "L'obstacle est le chemin. — Marc Aurèle",
+    "Deviens la meilleure version de toi-même, pas une copie de quelqu'un d'autre. — Anonyme",
+    "Aucun raccourci ne mène à un endroit qui en vaille la peine. — Beverly Sills",
+    "J'estime que les souffrances du temps présent ne sauraient être comparées à la gloire à venir qui sera révélée pour nous. - Romans 8:18"
+  ];
+
+  const [currentQuote, setCurrentQuote] = useState(() => Math.floor(Math.random() * quotes.length));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Éviter de répéter la même quote deux fois de suite
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * quotes.length);
+      } while (newIndex === currentQuote && quotes.length > 1);
+      
+      setCurrentQuote(newIndex);
+    }, 30000); // Change toutes les 30 secondes
+
+    return () => clearInterval(interval);
+  }, [currentQuote, quotes.length]);
+
+  return (
+    <div className="text-center">
+      <blockquote className="text-slate-200 italic text-sm leading-relaxed">
+        &ldquo;{quotes[currentQuote]}&rdquo;
+      </blockquote>
+    </div>
+  );
+};
 
 interface DashboardProps {
   projects: HTBProject[];
@@ -37,6 +85,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [platformFilter, setPlatformFilter] = useState('all');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [statusFilter] = useState('all');
+  
+  // États pour le modal de confirmation de suppression
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<HTBProject | null>(null);
 
   // Filtrer les projets pwnés pour l'historique
   const pwnedProjects = allProjects.filter(p => p.pwnedAt);
@@ -114,7 +166,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             a.href = url; a.download = `${p.name.replace(/\s+/g,'_')}.project.json`;
                             document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                           }}>Export</Button>
-                          <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600 text-xs px-2 py-1" onClick={() => deleteProject(p.id)}><Trash2 className="w-3 h-3" /></Button>
+                          <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600 text-xs px-2 py-1" onClick={() => {
+                            setProjectToDelete(p);
+                            setDeleteModalOpen(true);
+                          }}><Trash2 className="w-3 h-3" /></Button>
                         </div>
                       </div>
                     </div>
@@ -142,12 +197,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <CardTitle className="text-slate-100">Mood du jour</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative aspect-square max-w-[200px] mx-auto">
-            <img 
-              src="/1.png" 
-              alt="mood"
-              className="absolute inset-0 w-full h-full object-contain p-2"
-            />
+          <div className="flex items-center justify-center">
+            <div className="relative w-48 h-48">
+              <img 
+                src="/1.png" 
+                alt="mood"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+          {/* Quote du moment sous l'image */}
+          <div className="mt-4 pt-4 border-t border-slate-600">
+            <QuoteRotator />
           </div>
         </CardContent>
       </Card>
@@ -395,6 +456,71 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
         </CardContent>
       </Card>
+      
+      {/* Modal de confirmation de suppression */}
+      {deleteModalOpen && projectToDelete && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+            <div className="p-4 border-b border-slate-700">
+              <h3 className="text-lg font-semibold text-slate-100">Confirmer la suppression</h3>
+              <p className="text-slate-400 text-sm mt-1">
+                Êtes-vous sûr de vouloir supprimer le projet <span className="text-slate-200 font-medium">"{projectToDelete.name}"</span> ?
+              </p>
+              <p className="text-slate-400 text-sm mt-2">
+                Cette action est irréversible. Voulez-vous d'abord l'exporter pour garder une trace ?
+              </p>
+            </div>
+            <div className="p-4 space-y-3">
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  // Exporter d'abord, puis supprimer
+                  const data = exportProject(projectToDelete.id);
+                  if (data) {
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; 
+                    a.download = `${projectToDelete.name.replace(/\s+/g,'_')}.project.json`;
+                    document.body.appendChild(a); 
+                    a.click(); 
+                    document.body.removeChild(a); 
+                    URL.revokeObjectURL(url);
+                  }
+                  // Supprimer après export
+                  deleteProject(projectToDelete.id);
+                  setDeleteModalOpen(false);
+                  setProjectToDelete(null);
+                }}
+              >
+                📁 Exporter puis supprimer
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                onClick={() => {
+                  // Supprimer directement
+                  deleteProject(projectToDelete.id);
+                  setDeleteModalOpen(false);
+                  setProjectToDelete(null);
+                }}
+              >
+                🗑️ Supprimer directement
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setProjectToDelete(null);
+                }}
+              >
+                ❌ Annuler
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

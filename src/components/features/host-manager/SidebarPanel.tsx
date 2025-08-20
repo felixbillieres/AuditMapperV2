@@ -374,31 +374,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                             {/* Sera rempli dynamiquement par JavaScript */}
                           </div>
                           
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                // Rafraîchir l'affichage des connexions
-                                if ((window as any).updateConnectionsList) {
-                                  (window as any).updateConnectionsList(selectedHost.id);
-                                }
-                              }}
-                              className="flex-1 bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-xs"
-                            >
-                              <Eye className="w-3 h-3 mr-1" />
-                              Actualiser
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setConfirmRemoveAllConnsOpen(true)}
-                              className="flex-1 bg-red-700 border-red-600 text-red-200 hover:bg-red-600 text-xs"
-                            >
-                              <X className="w-3 h-3 mr-1" />
-                              Supprimer tout
-                            </Button>
-                          </div>
+
                         </div>
                       </div>
                     </div>

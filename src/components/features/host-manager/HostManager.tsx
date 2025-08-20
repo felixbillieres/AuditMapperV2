@@ -24,6 +24,7 @@ import { SidebarPanel } from './SidebarPanel';
 import { CategoryManager } from './CategoryManager';
 import { ImportExportPanel } from './ImportExportPanel';
 import NetworkVisualization from './NetworkVisualization';
+import { StatsModal } from './StatsModal';
 import { useHostStore } from '@/stores/hostStore';
 import { Host } from '@/types';
 import InfoModal from '@/components/ui/InfoModal';
@@ -51,6 +52,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [bulkText, setBulkText] = useState('');
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[]>([]);
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
+  const [statsModalType, setStatsModalType] = useState<'total' | 'active' | 'compromised' | 'critical' | 'credentials' | 'exploitation'>('total');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { ensureUniqueCategoryIds(); }, [ensureUniqueCategoryIds]);
 
@@ -75,7 +78,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
     compromised: hostsArray.filter((h: Host) => h.status === 'compromised').length,
     critical: hostsArray.filter((h: Host) => h.priority === 'critical').length,
     credentials: hostsArray.reduce((sum: number, h: Host) => sum + h.usernames.length + h.passwords.length + h.hashes.length, 0),
-    vulnerabilities: hostsArray.reduce((sum: number, h: Host) => sum + (h.vulnerabilities?.length || 0), 0),
+    vulnerabilities: hostsArray.reduce((sum: number, h: Host) => sum + (h.exploitationSteps?.length || 0), 0),
   };
 
   const handleHostSelect = (host: Host) => {
@@ -342,7 +345,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
 
         {/* Statistics Cards */}
         <div className="stats-grid mb-6">
-          <Card className="stats-card">
+          <Card 
+            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+            onClick={() => { setStatsModalType('total'); setStatsModalOpen(true); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <Server className="w-8 h-8 text-blue-400" />
@@ -353,7 +359,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="stats-card">
+          <Card 
+            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+            onClick={() => { setStatsModalType('active'); setStatsModalOpen(true); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-8 h-8 text-green-400" />
@@ -364,7 +373,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="stats-card">
+          <Card 
+            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+            onClick={() => { setStatsModalType('compromised'); setStatsModalOpen(true); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-8 h-8 text-orange-400" />
@@ -375,7 +387,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="stats-card">
+          <Card 
+            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+            onClick={() => { setStatsModalType('critical'); setStatsModalOpen(true); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <Target className="w-8 h-8 text-red-400" />
@@ -386,7 +401,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="stats-card">
+          <Card 
+            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+            onClick={() => { setStatsModalType('credentials'); setStatsModalOpen(true); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <Shield className="w-8 h-8 text-purple-400" />
@@ -397,13 +415,16 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               </div>
             </CardContent>
           </Card>
-          <Card className="stats-card">
+          <Card 
+            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+            onClick={() => { setStatsModalType('exploitation'); setStatsModalOpen(true); }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <AlertTriangle className="w-8 h-8 text-orange-400" />
+                <Target className="w-8 h-8 text-orange-400" />
                 <div>
                   <p className="text-2xl font-bold text-slate-100">{stats.vulnerabilities}</p>
-                  <p className="text-sm text-slate-400">Vulnérabilités</p>
+                  <p className="text-sm text-slate-400">Étapes d'exploitation</p>
                 </div>
               </div>
             </CardContent>
@@ -772,6 +793,15 @@ export const HostManager: React.FC<HostManagerProps> = () => {
         )}
         {showImportExport && (
           <ImportExportPanel onClose={() => setShowImportExport(false)} />
+        )}
+        {statsModalOpen && (
+          <StatsModal
+            isOpen={statsModalOpen}
+            onClose={() => setStatsModalOpen(false)}
+            type={statsModalType}
+            hosts={hostsArray}
+            stats={stats}
+          />
         )}
       </AnimatePresence>
 

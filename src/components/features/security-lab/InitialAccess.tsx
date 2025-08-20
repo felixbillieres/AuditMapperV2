@@ -23,19 +23,93 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
   return (
     <div className="space-y-6">
       {/* Service Exploits Section */}
-      <Card className="border-orange-600 bg-slate-800">
+      <Card className="border-slate-600 bg-slate-800">
         <CardHeader>
-          <CardTitle className="text-orange-300">🎯 Exploits de Services</CardTitle>
+          <CardTitle className="text-slate-200">🎯 Exploits de Services</CardTitle>
           <p className="text-slate-400 text-sm">Services transférés depuis la reconnaissance pour exploitation</p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Formulaire pour ajouter un nouvel exploit */}
+          <div className="p-4 bg-slate-700/50 rounded border border-slate-600">
+            <h4 className="text-sm font-medium text-slate-200 mb-3">Ajouter un nouvel exploit</h4>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs text-slate-300 block mb-1">Port/Protocole</label>
+                <Input 
+                  placeholder="80/tcp"
+                  className="bg-slate-600 border-slate-500 text-slate-100 text-sm"
+                  id="newExploitPort"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-300 block mb-1">Service</label>
+                <Input 
+                  placeholder="http"
+                  className="bg-slate-600 border-slate-500 text-slate-100 text-sm"
+                  id="newExploitService"
+                />
+              </div>
+            </div>
+            <div className="mb-3">
+              <label className="text-xs text-slate-300 block mb-1">Type d'exploit</label>
+              <Input 
+                placeholder="SQLi, RCE, CVE-2021-XXXX..."
+                className="bg-slate-600 border-slate-500 text-slate-100 text-sm"
+                id="newExploitType"
+              />
+            </div>
+            <div className="mb-3">
+              <label className="text-xs text-slate-300 block mb-1">Détails</label>
+              <Textarea 
+                rows={2}
+                placeholder="Description de l'exploit, payload, etc."
+                className="bg-slate-600 border-slate-500 text-slate-100 text-sm"
+                id="newExploitDetails"
+              />
+            </div>
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-sm"
+              onClick={() => {
+                const port = (document.getElementById('newExploitPort') as HTMLInputElement).value;
+                const service = (document.getElementById('newExploitService') as HTMLInputElement).value;
+                const type = (document.getElementById('newExploitType') as HTMLInputElement).value;
+                const details = (document.getElementById('newExploitDetails') as HTMLInputElement).value;
+                
+                if (port && service && type) {
+                  const newExploit = {
+                    id: Date.now().toString(),
+                    servicePort: port,
+                    serviceProto: 'tcp' as const,
+                    serviceName: service,
+                    serviceVersion: undefined,
+                    exploitType: type,
+                    details: details,
+                    commands: '',
+                    status: 'testing' as const,
+                    notes: ''
+                  };
+                  
+                  const updatedExploits = [...(selected.serviceExploits || []), newExploit];
+                  updateProject(selected.id, { serviceExploits: updatedExploits });
+                  
+                  // Réinitialiser le formulaire
+                  (document.getElementById('newExploitPort') as HTMLInputElement).value = '';
+                  (document.getElementById('newExploitService') as HTMLInputElement).value = '';
+                  (document.getElementById('newExploitType') as HTMLInputElement).value = '';
+                  (document.getElementById('newExploitDetails') as HTMLInputElement).value = '';
+                }
+              }}
+            >
+              + Ajouter l'exploit
+            </Button>
+          </div>
           {selected.serviceExploits && selected.serviceExploits.length > 0 ? (
             selected.serviceExploits.map((exploit) => (
               <Card key={exploit.id} className="border-slate-600 bg-slate-700">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm flex items-center gap-2">
-                      <span className="text-cyan-400">{exploit.servicePort}/{exploit.serviceProto}</span>
+                      <span className="text-slate-300">{exploit.servicePort}/{exploit.serviceProto}</span>
                       <span className="text-white">{exploit.serviceName}</span>
                       {exploit.serviceVersion && <span className="text-slate-400">({exploit.serviceVersion})</span>}
                       <div className={`px-2 py-1 rounded text-xs ${
@@ -51,7 +125,7 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      className="bg-red-700 border-red-600 text-red-100 hover:bg-red-600"
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                       onClick={() => {
                         const updatedExploits = selected.serviceExploits?.filter(e => e.id !== exploit.id) || [];
                         updateProject(selected.id, { serviceExploits: updatedExploits });
@@ -110,7 +184,7 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="bg-yellow-700 border-yellow-600 text-yellow-100 hover:bg-yellow-600"
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                       onClick={() => {
                         const updatedExploits = selected.serviceExploits?.map(ex => 
                           ex.id === exploit.id ? { ...ex, status: 'testing' as const } : ex
@@ -123,7 +197,7 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="bg-green-700 border-green-600 text-green-100 hover:bg-green-600"
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                       onClick={() => {
                         const updatedExploits = selected.serviceExploits?.map(ex => 
                           ex.id === exploit.id ? { ...ex, status: 'working' as const } : ex
@@ -136,7 +210,7 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
                     <Button 
                       size="sm" 
                       variant="outline"
-                      className="bg-red-700 border-red-600 text-red-100 hover:bg-red-600"
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                       onClick={() => {
                         const updatedExploits = selected.serviceExploits?.map(ex => 
                           ex.id === exploit.id ? { ...ex, status: 'failed' as const } : ex
@@ -365,7 +439,7 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
                           <span className="text-slate-100 font-medium">{vec.label}</span>
                           {vec.note && <span className="text-slate-400 text-sm">— {vec.note}</span>}
                         </div>
-                        <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600" onClick={()=>{
+                        <Button size="sm" variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={()=>{
                           const copy = [...selected.potentialVectors]; copy.splice(i,1); updateProject(selected.id,{ potentialVectors: copy });
                         }}><Trash2 className="w-3 h-3" /></Button>
                       </div>
@@ -419,7 +493,7 @@ export const InitialAccess: React.FC<InitialAccessProps> = ({
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setEditingStep(step)}>Éditer</Button>
-                        <Button size="sm" variant="outline" className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600" onClick={() => {
+                        <Button size="sm" variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => {
                           const copy = selected.exploitLog.filter(s => s.id !== step.id);
                           updateProject(selected.id, { exploitLog: copy });
                         }}><Trash2 className="w-3 h-3" /></Button>

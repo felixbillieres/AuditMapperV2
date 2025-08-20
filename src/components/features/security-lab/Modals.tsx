@@ -87,7 +87,7 @@ export const Modals: React.FC<ModalsProps> = ({
     <>
       {/* Modal: Créer un projet */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-2xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
             <div className="p-4 border-b border-slate-700 text-slate-100 font-semibold">Nouveau Projet</div>
             <div className="p-4 space-y-4">
@@ -108,7 +108,7 @@ export const Modals: React.FC<ModalsProps> = ({
                     <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-slate-100">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-600">
+                    <SelectContent className="bg-slate-800 border-slate-600 z-[10000]">
                       <SelectItem value="HackTheBox">🟢 HackTheBox</SelectItem>
                       <SelectItem value="Offsec">🔴 Offsec (PWK/OSCP)</SelectItem>
                       <SelectItem value="TryHackMe">🟠 TryHackMe</SelectItem>
@@ -123,7 +123,7 @@ export const Modals: React.FC<ModalsProps> = ({
                     <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-slate-100">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-600">
+                    <SelectContent className="bg-slate-800 border-slate-600 z-[10000]">
                       <SelectItem value="Easy">🟢 Easy</SelectItem>
                       <SelectItem value="Medium">🟡 Medium</SelectItem>
                       <SelectItem value="Hard">🔴 Hard</SelectItem>
@@ -158,7 +158,7 @@ export const Modals: React.FC<ModalsProps> = ({
 
       {/* Modal: Notes de service */}
       {serviceNotesOpen && selected && selected.services[serviceIdx] && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-4xl h-[80vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col">
             <div className="p-4 border-b border-slate-700 flex items-center justify-between">
               <div className="text-slate-100 font-semibold">
@@ -271,7 +271,7 @@ export const Modals: React.FC<ModalsProps> = ({
 
       {/* Modal: Ajouter au journal d'exploit */}
       {exploitModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-2xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
             <div className="p-4 border-b border-slate-700 text-slate-100 font-semibold">
               {editingStep ? 'Modifier l\'étape' : 'Nouvelle étape d\'exploitation'}

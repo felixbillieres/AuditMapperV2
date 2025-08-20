@@ -278,17 +278,20 @@ ${step.result ? `**Résultat**:\n\`\`\`\n${step.result}\n\`\`\`` : ''}
             </div>
           )}
 
-          <div className="flex items-center justify-between border-b border-slate-700">
-            <div className="flex items-center gap-2">
-              <button onClick={() => { setSearchParams({}); }} className="text-slate-300 hover:text-white text-sm">← Retour</button>
-              <div className="text-slate-200 font-semibold">{selected?.name}</div>
+          {/* Navigation des onglets - Affichée seulement quand un projet est sélectionné */}
+          {selected && (
+            <div className="flex items-center justify-between border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setSearchParams({}); }} className="text-slate-300 hover:text-white text-sm">← Retour</button>
+                <div className="text-slate-200 font-semibold">{selected?.name}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {(['recon','initial','privesc','post','writeup'] as const).map(t => (
+                  <button key={t} onClick={() => setDetailTab(t)} className={`px-3 py-2 text-sm ${detailTab === t ? 'text-slate-100 border-b-2 border-blue-500' : 'text-slate-400'}`}>{t === 'recon' ? 'Recon' : t === 'initial' ? 'Accès' : t === 'privesc' ? 'Privesc' : t === 'post' ? 'Post-Exploitation' : 'Writeup'}</button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {(['recon','initial','privesc','post','writeup'] as const).map(t => (
-                <button key={t} onClick={() => setDetailTab(t)} className={`px-3 py-2 text-sm ${detailTab === t ? 'text-slate-100 border-b-2 border-blue-500' : 'text-slate-400'}`}>{t === 'recon' ? 'Recon' : t === 'initial' ? 'Accès' : t === 'privesc' ? 'Privesc' : t === 'post' ? 'Post-Exploitation' : 'Writeup'}</button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="main-content">

@@ -21,60 +21,60 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
   return (
     <div className="space-y-6">
       {/* OS-Specific Privesc Commands */}
-      <Card className="border-yellow-600 bg-slate-800">
+      <Card className="border-slate-600 bg-slate-800">
         <CardHeader>
-          <CardTitle className="text-yellow-300">🔓 Commandes Privesc par OS</CardTitle>
+          <CardTitle className="text-slate-200">🔓 Commandes Privesc par OS</CardTitle>
           <p className="text-slate-400 text-sm">Commandes d'énumération et d'escalade selon l'OS de la cible</p>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
             
             {/* Linux Privesc */}
-            <Card className="border-green-600 bg-slate-700">
+            <Card className="border-slate-600 bg-slate-700">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-green-300 flex items-center gap-2">
+                <CardTitle className="text-sm text-slate-200 flex items-center gap-2">
                   🐧 Linux Privilege Escalation
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Automated Enumeration */}
                 <div>
-                  <div className="text-xs text-green-300 font-medium mb-2">Énumération automatisée</div>
+                  <div className="text-xs text-slate-200 font-medium mb-2">Énumération automatisée</div>
                   <div className="space-y-1">
                     <div className="relative group">
-                      <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-green-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText('linpeas.sh')}>
+                      <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText('linpeas.sh')}>
                         linpeas.sh
                       </code>
                       <Button 
                         variant="ghost"
                         size="sm"
-                        className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
                         onClick={() => navigator.clipboard.writeText('linpeas.sh')}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="relative group">
-                      <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-green-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText('linenum.sh')}>
+                      <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText('linenum.sh')}>
                         linenum.sh
                       </code>
                       <Button 
                         variant="ghost"
                         size="sm"
-                        className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
                         onClick={() => navigator.clipboard.writeText('linenum.sh')}
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="relative group">
-                      <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-green-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText('unix-privesc-check')}>
+                      <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText('unix-privesc-check')}>
                         unix-privesc-check
                       </code>
                       <Button 
                         variant="ghost"
                         size="sm"
-                        className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
                         onClick={() => navigator.clipboard.writeText('unix-privesc-check')}
                       >
                         <Copy className="h-3 w-3" />
@@ -85,7 +85,7 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
 
                 {/* Manual Enumeration */}
                 <div>
-                  <div className="text-xs text-green-300 font-medium mb-2">Énumération manuelle</div>
+                  <div className="text-xs text-slate-200 font-medium mb-2">Énumération manuelle</div>
                   <div className="space-y-1">
                     {[
                       'id',
@@ -102,13 +102,13 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
                       'ss -anp'
                     ].map((cmd, i) => (
                       <div key={i} className="relative group">
-                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-green-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
+                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
                           {cmd}
                         </code>
                         <Button 
                           variant="ghost"
                           size="sm"
-                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
                           onClick={() => navigator.clipboard.writeText(cmd)}
                         >
                           <Copy className="h-3 w-3" />
@@ -120,7 +120,7 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
 
                 {/* Credentials */}
                 <div>
-                  <div className="text-xs text-green-300 font-medium mb-2">Recherche de credentials</div>
+                  <div className="text-xs text-slate-200 font-medium mb-2">Recherche de credentials</div>
                   <div className="space-y-1">
                     {[
                       'find / -name "*.txt" -exec grep -l "password" {} \\; 2>/dev/null',
@@ -131,13 +131,13 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
                       'cat ~/.ssh/id_dsa'
                     ].map((cmd, i) => (
                       <div key={i} className="relative group">
-                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-green-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
+                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
                           {cmd}
                         </code>
                         <Button 
                           variant="ghost"
                           size="sm"
-                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
                           onClick={() => navigator.clipboard.writeText(cmd)}
                         >
                           <Copy className="h-3 w-3" />
@@ -150,16 +150,16 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
             </Card>
 
             {/* Windows Privesc */}
-            <Card className="border-blue-600 bg-slate-700">
+            <Card className="border-slate-600 bg-slate-700">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm text-blue-300 flex items-center gap-2">
+                <CardTitle className="text-sm text-slate-200 flex items-center gap-2">
                   🪟 Windows Privilege Escalation
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Automated Enumeration */}
                 <div>
-                  <div className="text-xs text-blue-300 font-medium mb-2">Énumération automatisée</div>
+                  <div className="text-xs text-slate-200 font-medium mb-2">Énumération automatisée</div>
                   <div className="space-y-1">
                     {[
                       'winpeas.exe',
@@ -168,13 +168,13 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
                       'jaws-enum.ps1'
                     ].map((cmd, i) => (
                       <div key={i} className="relative group">
-                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-blue-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
+                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
                           {cmd}
                         </code>
                         <Button 
                           variant="ghost"
                           size="sm"
-                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
                           onClick={() => navigator.clipboard.writeText(cmd)}
                         >
                           <Copy className="h-3 w-3" />
@@ -186,7 +186,7 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
 
                 {/* Manual Enumeration */}
                 <div>
-                  <div className="text-xs text-blue-300 font-medium mb-2">Énumération manuelle</div>
+                  <div className="text-xs text-slate-200 font-medium mb-2">Énumération manuelle</div>
                   <div className="space-y-1">
                     {[
                       'whoami',
@@ -201,71 +201,71 @@ export const PrivilegeEscalation: React.FC<PrivilegeEscalationProps> = ({
                       'wmic service list',
                       'reg query HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\\AlwaysInstallElevated',
                       'reg query HKCU\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer\\AlwaysInstallElevated'
-                    ].map((cmd, i) => (
-                      <div key={i} className="relative group">
-                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-blue-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
-                          {cmd}
-                        </code>
-                        <Button 
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => navigator.clipboard.writeText(cmd)}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+                                          ].map((cmd, i) => (
+                        <div key={i} className="relative group">
+                          <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
+                            {cmd}
+                          </code>
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
+                            onClick={() => navigator.clipboard.writeText(cmd)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Registry & Passwords */}
-                <div>
-                  <div className="text-xs text-blue-300 font-medium mb-2">Registre et mots de passe</div>
-                  <div className="space-y-1">
-                    {[
-                      'reg query HKLM /f password /t REG_SZ /s',
-                      'reg query HKCU /f password /t REG_SZ /s',
-                      'dir /s *pass* == *cred* == *vnc* == *.config*',
-                      'findstr /si password *.xml *.ini *.txt',
-                      'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\Currentversion\\Winlogon"'
-                    ].map((cmd, i) => (
-                      <div key={i} className="relative group">
-                        <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-blue-400 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
-                          {cmd}
-                        </code>
-                        <Button 
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => navigator.clipboard.writeText(cmd)}
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
+                  {/* Registry & Passwords */}
+                  <div>
+                    <div className="text-xs text-slate-200 font-medium mb-2">Registre et mots de passe</div>
+                    <div className="space-y-1">
+                      {[
+                        'reg query HKLM /f password /t REG_SZ /s',
+                        'reg query HKCU /f password /t REG_SZ /s',
+                        'dir /s *pass* == *cred* == *vnc* == *.config*',
+                        'findstr /si password *.xml *.ini *.txt',
+                        'reg query "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\Currentversion\\Winlogon"'
+                      ].map((cmd, i) => (
+                        <div key={i} className="relative group">
+                          <code className="block bg-slate-900 border border-slate-600 rounded px-2 py-1 text-slate-300 text-xs cursor-pointer" onClick={() => navigator.clipboard.writeText(cmd)}>
+                            {cmd}
+                          </code>
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-700 hover:bg-slate-600 text-slate-200"
+                            onClick={() => navigator.clipboard.writeText(cmd)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Common Exploits */}
-                <div>
-                  <div className="text-xs text-blue-300 font-medium mb-2">Exploits courants</div>
-                  <div className="space-y-1">
-                    {[
-                      'MS17-010 (EternalBlue)',
-                      'MS16-032',
-                      'MS15-051',
-                      'MS14-068 (Kerberos)',
-                      'Hot Potato',
-                      'Rotten Potato',
-                      'Juicy Potato'
-                    ].map((exploit, i) => (
-                      <div key={i} className="bg-slate-900 border border-slate-600 rounded px-2 py-1">
-                        <span className="text-blue-400 text-xs">{exploit}</span>
-                      </div>
-                    ))}
+                  {/* Common Exploits */}
+                  <div>
+                    <div className="text-xs text-slate-200 font-medium mb-2">Exploits courants</div>
+                    <div className="space-y-1">
+                      {[
+                        'MS17-010 (EternalBlue)',
+                        'MS16-032',
+                        'MS15-051',
+                        'MS14-068 (Kerberos)',
+                        'Hot Potato',
+                        'Rotten Potato',
+                        'Juicy Potato'
+                      ].map((exploit, i) => (
+                        <div key={i} className="bg-slate-900 border border-slate-600 rounded px-2 py-1">
+                          <span className="text-slate-300 text-xs">{exploit}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
               </CardContent>
             </Card>
           </div>

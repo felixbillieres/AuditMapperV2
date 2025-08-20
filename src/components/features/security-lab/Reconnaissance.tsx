@@ -153,7 +153,7 @@ export const Reconnaissance: React.FC<ReconnaissanceProps> = ({
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-cyan-400 font-mono">{s.port}/{s.proto}</span>
+                                              <span className="text-slate-300 font-mono">{s.port}/{s.proto}</span>
                       <span className="text-white">{s.service}</span>
                       <span className="text-slate-400 text-sm">{s.version || '—'}</span>
                       {/* Preview & notes modal trigger */}
