@@ -7,8 +7,10 @@ import { createPortal } from 'react-dom';
 import {
   Shield,
   Wrench,
+  Info,
   Search,
   RefreshCw,
+  Bug,
   Clipboard,
   Upload,
   Download,
@@ -153,6 +155,86 @@ const DETAILS: Record<string, ItemDetails> = {
   },
 };
 
+const HELP_TOPICS: Record<string, { title: string; content: React.ReactNode }> = {
+  dll_hijacking: {
+    title: 'DLL Hijacking (Windows)',
+    content: (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p>Objectif: Charger une DLL arbitraire à la place d’une DLL manquante dans le PATH de la cible.</p>
+        <ol className="list-decimal ml-5 space-y-1">
+          <li>Identifier un binaire vulnérable (Procmon/Autoruns/services).</li>
+          <li>Filtrer <code>NAME NOT FOUND</code> pour repérer les DLL manquantes.</li>
+          <li>Choisir un répertoire écrivable par l’utilisateur dans l’ordre de recherche.</li>
+          <li>Compiler/placer une DLL malveillante (exports requis) au nom attendu.</li>
+          <li>Déclencher l’exécution (service/appli) pour valider l’exécution de code.</li>
+        </ol>
+      </div>
+    ),
+  },
+  unquoted_service_path: {
+    title: 'Unquoted Service Path (Windows)',
+    content: (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p>Chemin de service non quoté avec espaces: Windows tente des chemins partiels.</p>
+        <ol className="list-decimal ml-5 space-y-1">
+          <li>Enum: <code>wmic service get name,displayname,pathname,startmode | findstr /i "Auto" | findstr /i /v "C:\\Windows\\"</code></li>
+          <li>Tester les permissions d’écriture des dossiers candidats (<code>icacls</code>).</li>
+          <li>Déposer un binaire/DLL à un emplacement antérieur dans le chemin résolu.</li>
+          <li>Redémarrer le service pour valider.</li>
+        </ol>
+      </div>
+    ),
+  },
+  cron_linux: {
+    title: 'Cronjob (Linux)',
+    content: (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p>Recherche d’entrées cron faibles pour escalade.</p>
+        <ol className="list-decimal ml-5 space-y-1">
+          <li>Enum: <code>crontab -l</code>, <code>ls -la /etc/cron*</code>, <code>systemctl list-timers</code></li>
+          <li>Vérifier permissions des scripts appelés (écriture pour l’utilisateur ?).</li>
+          <li>Hijack: injecter une commande si modifiable.</li>
+        </ol>
+      </div>
+    ),
+  },
+  schtasks_windows: {
+    title: 'Scheduled Tasks (schtasks) (Windows)',
+    content: (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p>Tâches planifiées faibles ou détournables.</p>
+        <ol className="list-decimal ml-5 space-y-1">
+          <li>Enum: <code>schtasks /query /fo LIST /v</code> ou <code>Get-ScheduledTask</code></li>
+          <li>Inspecter l’action et le binaire: permissions d’écriture ?</li>
+        </ol>
+      </div>
+    ),
+  },
+  always_install_elevated: {
+    title: 'AlwaysInstallElevated (Windows)',
+    content: (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p>Si activé, permet d’installer un MSI en tant que SYSTEM.</p>
+        <ol className="list-decimal ml-5 space-y-1">
+          <li>Vérifier: <code>reg query HKCU\Software\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated</code> et HKLM</li>
+          <li>Si 1/1: générer un MSI malveillant (msfvenom) et lancer <code>msiexec /quiet /qn /i evil.msi</code></li>
+        </ol>
+      </div>
+    ),
+  },
+  capabilities_linux: {
+    title: 'Linux capabilities (setuid)',
+    content: (
+      <div className="space-y-3 text-sm leading-relaxed">
+        <p>Capacités abusables: cap_setuid, cap_dac_* etc.</p>
+        <ul className="list-disc ml-5 space-y-1">
+          <li><code>{`getcap -r / 2>/dev/null`.replace('>','&gt;')}</code> et tester GTFOBins (python, perl, tar, etc.).</li>
+        </ul>
+      </div>
+    ),
+  },
+};
+
 const THEMES: Record<PrivescMode, { id: string; title: string; items: { id: string; label: string; helpKey?: string }[] }[]> = {
   linux: [
     {
@@ -162,15 +244,16 @@ const THEMES: Record<PrivescMode, { id: string; title: string; items: { id: stri
         { id: 'uname', label: 'uname -a / lsb_release -a' },
         { id: 'id', label: 'id / groups / sudo -l' },
         { id: 'proc', label: 'ps aux / services / ports ouverts' },
-        { id: 'files', label: 'Fichiers SUID/SGID intéressants' },
+        { id: 'files', label: 'Fichiers SUID/SGID intéressants', helpKey: 'capabilities_linux' },
       ],
     },
     {
       id: 'weak_perms',
       title: 'Permissions faibles',
       items: [
-        { id: 'capabilities', label: 'Linux capabilities (getcap -r /)' },
-        { id: 'cron', label: 'Cron modifiable' },
+        { id: 'sudoers', label: 'sudo -l (NOPASSWD, GTFOBins)' },
+        { id: 'capabilities', label: 'Linux capabilities (getcap -r /)', helpKey: 'capabilities_linux' },
+        { id: 'cron', label: 'Cron modifiable', helpKey: 'cron_linux' },
         { id: 'path', label: 'PATH hijack / writable dirs' },
         { id: 'nfs', label: 'NFS (no_root_squash ?) / montages' },
         { id: 'docker', label: 'Docker/LXC groupe docker / sockets' },
@@ -199,10 +282,10 @@ const THEMES: Record<PrivescMode, { id: string; title: string; items: { id: stri
       id: 'services',
       title: 'Services & DLL',
       items: [
-        { id: 'dll_hijack', label: 'DLL Hijacking' },
-        { id: 'unquoted', label: 'Unquoted Service Path' },
-        { id: 'schtasks', label: 'Scheduled Tasks (schtasks)' },
-        { id: 'alwaysinstall', label: 'AlwaysInstallElevated' },
+        { id: 'dll_hijack', label: 'DLL Hijacking', helpKey: 'dll_hijacking' },
+        { id: 'unquoted', label: 'Unquoted Service Path', helpKey: 'unquoted_service_path' },
+        { id: 'schtasks', label: 'Scheduled Tasks (schtasks)', helpKey: 'schtasks_windows' },
+        { id: 'alwaysinstall', label: 'AlwaysInstallElevated', helpKey: 'always_install_elevated' },
       ],
     },
     {
@@ -217,12 +300,31 @@ const THEMES: Record<PrivescMode, { id: string; title: string; items: { id: stri
   ],
 };
 
+const HelpModal: React.FC<{ open: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ open, onClose, title, children }) => {
+  if (!open) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[1000]">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-xl shadow-xl">
+          <div className="flex items-center justify-between p-4 border-b border-slate-700">
+            <div className="font-semibold text-slate-100">{title}</div>
+            <button className="text-slate-400 hover:text-slate-200" onClick={onClose}>✕</button>
+          </div>
+          <div className="p-4 text-slate-200">{children}</div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 const TechniqueModal: React.FC<{ 
   open: boolean; 
   onClose: () => void; 
   techniqueId: string; 
   mode: PrivescMode;
-}> = ({ open, onClose, techniqueId }) => {
+}> = ({ open, onClose, techniqueId, mode }) => {
   if (!open) return null;
   
   const technique = DETAILS[techniqueId];
@@ -415,6 +517,7 @@ const PrivescPage: React.FC = () => {
   const [mode, setMode] = useState<PrivescMode>('linux');
   const { checklists, toggleItem, resetMode } = usePrivescStore();
   const [query, setQuery] = useState('');
+  const [helpKey, setHelpKey] = useState<string | null>(null);
   const [about, setAbout] = useState(false);
   const [selectedTechnique, setSelectedTechnique] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -427,12 +530,14 @@ const PrivescPage: React.FC = () => {
     return themes
       .map(t => ({
         ...t,
-        items: t.items.filter(i => i.label.toLowerCase().includes(q) || i.id.toLowerCase().includes(q))
+        items: t.items.filter(i => i.label.toLowerCase().includes(q) || (i.helpKey && HELP_TOPICS[i.helpKey]))
       }))
       .filter(t => t.items.length > 0);
   }, [themes, query]);
 
   const stateForMode = checklists[mode] || {};
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
   const exportJson = () => {
     const data = { mode, checklists };
@@ -449,6 +554,7 @@ const PrivescPage: React.FC = () => {
       try {
         const data = JSON.parse(String(reader.result));
         if (data?.checklists) {
+          // Réinjecter en localStorage pour le middleware persist
           localStorage.setItem('privesc-store', JSON.stringify({ state: { checklists: data.checklists } }));
           window.location.reload();
         }
@@ -476,254 +582,176 @@ const PrivescPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      {/* Header amélioré */}
-      <div className="bg-slate-900 border-b border-slate-700 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-100">PrivEsc Helper</h1>
-                <p className="text-slate-400 text-lg">Guide complet pour l'escalade de privilèges</p>
-              </div>
+    <div className="min-h-screen bg-dark-950 text-dark-100 overflow-x-hidden overflow-y-auto">
+      {/* Header cohérent */}
+      <div className="main-header p-6">
+        <div className="flex-between mb-6">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="AuditMapper" className="w-8 h-8 rounded-lg opacity-80" />
+            <div>
+              <h1 className="text-2xl font-bold text-slate-100">Privesc Helper</h1>
+              <p className="text-slate-400">Checklists ciblées et aides rapides pour l’escalade de privilèges</p>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex bg-slate-800 rounded-lg p-1">
-                <Button 
-                  onClick={() => setMode('linux')} 
-                  className={`px-4 py-2 rounded-md transition-all ${
-                    mode === 'linux' 
-                      ? 'bg-blue-600 text-white shadow-lg' 
-                      : 'bg-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  🐧 Linux
-                </Button>
-                <Button 
-                  onClick={() => setMode('windows')} 
-                  className={`px-4 py-2 rounded-md transition-all ${
-                    mode === 'windows' 
-                      ? 'bg-blue-600 text-white shadow-lg' 
-                      : 'bg-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  🪟 Windows
-                </Button>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button onClick={exportJson} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">
-                  <Download className="w-4 h-4 mr-2" /> Export
-                </Button>
-                <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if (f) importJson(f); }} />
-                <Button onClick={()=>fileRef.current?.click()} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">
-                  <Upload className="w-4 h-4 mr-2" /> Import
-                </Button>
-                <Button onClick={() => resetMode(mode)} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">
-                  <RefreshCw className="w-4 h-4 mr-2" /> Reset
-                </Button>
-                <Button variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setAbout(true)}>
-                  ℹ️ Aide
-                </Button>
-              </div>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setMode('linux')} className={mode==='linux'?'bg-blue-600 hover:bg-blue-700':'bg-slate-700 border-slate-600'}>Linux</Button>
+            <Button onClick={() => setMode('windows')} className={mode==='windows'?'bg-blue-600 hover:bg-blue-700':'bg-slate-700 border-slate-600'}>Windows</Button>
+            <Button onClick={exportJson} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"><Download className="w-4 h-4 mr-1" /> Export</Button>
+            <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if (f) importJson(f); }} />
+            <Button onClick={()=>fileRef.current?.click()} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"><Upload className="w-4 h-4 mr-1" /> Import</Button>
+            <Button onClick={() => resetMode(mode)} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"><RefreshCw className="w-4 h-4 mr-1" /> Reset</Button>
+            <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => setAbout(true)}>ℹ️ Comment ça marche</Button>
           </div>
         </div>
       </div>
 
-      {/* Contenu principal avec layout amélioré */}
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* Sidebar gauche - Outils et recherche */}
-          <div className="xl:col-span-1 space-y-6">
-            {/* Barre de recherche */}
-            <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-slate-100 flex items-center gap-2 text-lg">
-                  <Search className="w-5 h-5" /> Recherche
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Input 
-                  value={query} 
-                  onChange={(e)=>setQuery(e.target.value)} 
-                  placeholder="Filtrer les techniques..." 
-                  className="bg-slate-700 border-slate-600 text-slate-200 placeholder:text-slate-500" 
-                />
-              </CardContent>
-            </Card>
+      <div className="main-content">
+        {/* Sidebar enrichie */}
+        <div className="sidebar-left p-4 space-y-4">
+          <Card className="border-slate-700 bg-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-100 flex items-center gap-2"><Search className="w-5 h-5" /> Recherche</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Filtrer des items (ex: sudo, cron, dll)" className="bg-slate-700 border-slate-600" />
+            </CardContent>
+          </Card>
 
-            {/* Statistiques */}
-            <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-slate-100 flex items-center gap-2 text-lg">
-                  📊 Progression
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {filteredThemes.map(theme => {
-                    const themeState = stateForMode[theme.id] || {};
-                    const totalItems = theme.items.length;
-                    const completedItems = Object.values(themeState).filter(Boolean).length;
-                    const percentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-                    
-                    return (
-                      <div key={theme.id} className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-300 font-medium">{theme.title}</span>
-                          <span className="text-slate-400 text-xs">{completedItems}/{totalItems}</span>
-                        </div>
-                        <div className="w-full bg-slate-700 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-300" 
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Commandes rapides */}
-            <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-slate-100 flex items-center gap-2 text-lg">
-                  <Clipboard className="w-5 h-5" /> Commandes rapides
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(mode==='linux'?linuxQuick:windowsQuick).map((c) => (
-                  <div key={c.label} className="group">
-                    <div className="text-xs text-slate-400 mb-1">{c.label}</div>
-                    <div className="flex items-center gap-2">
-                      <pre className="flex-1 bg-slate-900 border border-slate-600 text-slate-300 text-xs p-2 rounded overflow-x-auto">
-                        <code>{c.cmd}</code>
-                      </pre>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={()=>copyText(c.cmd)} 
-                        className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        Copier
-                      </Button>
-                    </div>
-                  </div>
+          <Card className="border-slate-700 bg-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-100 flex items-center gap-2"><Bug className="w-5 h-5" /> Aides rapides</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-slate-300 space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(HELP_TOPICS).map(([key, t]) => (
+                  <Button key={key} onClick={()=>setHelpKey(key)} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-xs">{t.title}</Button>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Ressources */}
-            <Card className="border-slate-700 bg-slate-800/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-slate-100 flex items-center gap-2 text-lg">
-                  📚 Ressources
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <a href="https://gtfobins.github.io/" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-slate-700 rounded hover:bg-slate-600 text-blue-400 hover:text-blue-300 transition-colors">
-                  <ExternalLink className="w-4 h-4" /> GTFOBins
-                </a>
-                <a href="https://lolbas-project.github.io/" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-slate-700 rounded hover:bg-slate-600 text-blue-400 hover:text-blue-300 transition-colors">
-                  <ExternalLink className="w-4 h-4" /> LOLBAS
-                </a>
-                <a href="https://book.hacktricks.xyz/" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-slate-700 rounded hover:bg-slate-600 text-blue-400 hover:text-blue-300 transition-colors">
-                  <ExternalLink className="w-4 h-4" /> HackTricks
-                </a>
-                <a href="https://github.com/carlospolop/PEASS-ng" target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 bg-slate-700 rounded hover:bg-slate-600 text-blue-400 hover:text-blue-300 transition-colors">
-                  <ExternalLink className="w-4 h-4" /> PEASS-ng
-                </a>
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="border-slate-700 bg-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-100 flex items-center gap-2"><Clipboard className="w-5 h-5" /> Commandes utiles</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(mode==='linux'?linuxQuick:windowsQuick).map((c) => (
+                <div key={c.label} className="flex items-center justify-between gap-2">
+                  <div className="text-xs text-slate-300 truncate" title={c.cmd}>{c.label}</div>
+                  <Button size="sm" variant="outline" onClick={()=>copyText(c.cmd)} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">Copier</Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
-          {/* Contenu principal - Techniques */}
-          <div className="xl:col-span-3">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {filteredThemes.map(theme => {
-                const themeState = stateForMode[theme.id] || {};
-                return (
-                  <Card key={theme.id} className="border-slate-700 bg-slate-800/50 backdrop-blur-sm hover:bg-slate-800/70 transition-all duration-200">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-slate-100 flex items-center gap-2 text-xl">
-                        <Wrench className="w-6 h-6 text-blue-400" /> {theme.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {theme.items.map(item => {
-                        const checked = !!themeState[item.id];
-                        const d = DETAILS[item.id] || {};
-                        
-                        return (
-                          <div key={item.id} className="group relative">
-                            <div className="flex items-start gap-4 p-4 rounded-lg border border-slate-600 bg-slate-700/30 hover:bg-slate-700/50 transition-all duration-200">
-                              <input
-                                type="checkbox"
-                                className="mt-1 w-4 h-4 text-blue-600 bg-slate-700 border-slate-500 rounded focus:ring-blue-500 focus:ring-2"
-                                checked={checked}
-                                onChange={()=>toggleItem(mode, theme.id, item.id)}
-                                title="Marquer comme vérifié"
-                              />
-                              
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="text-slate-200 font-medium text-sm leading-tight">
-                                    {item.label}
-                                  </h4>
-                                  {checked && (
-                                    <span className="text-green-400 text-xs bg-green-400/10 px-2 py-1 rounded-full">
-                                      ✓ Vérifié
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                {d.description && (
-                                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-                                    {d.description}
-                                  </p>
+          <Card className="border-slate-700 bg-slate-800">
+            <CardHeader>
+              <CardTitle className="text-slate-100 flex items-center gap-2"><Info className="w-5 h-5" /> Références</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <a href="https://gtfobins.github.io/" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> GTFOBins (Linux)</a>
+              <a href="https://lolbas-project.github.io/" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> LOLBAS (Windows)</a>
+              <a href="https://book.hacktricks.xyz/" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> HackTricks</a>
+              <a href="https://github.com/carlospolop/PEASS-ng" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline flex items-center gap-1"><ExternalLink className="w-3 h-3" /> LinPEAS / WinPEAS</a>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Contenu principal */}
+        <div className="content-main p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredThemes.map(theme => {
+              const themeState = stateForMode[theme.id] || {};
+              return (
+                <Card key={theme.id} className="border-slate-700 bg-slate-800 card-hover">
+                  <CardHeader>
+                    <CardTitle className="text-slate-100 flex items-center gap-2"><Wrench className="w-5 h-5" /> {theme.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {theme.items.map(item => {
+                      const checked = !!themeState[item.id];
+                      const key = `${theme.id}:${item.id}`;
+                      const d = DETAILS[item.id] || {};
+                      return (
+                        <div key={item.id} className="rounded border border-slate-600 bg-slate-800/60">
+                          <div className="flex items-start gap-3 p-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1"
+                              checked={checked}
+                              onChange={()=>toggleItem(mode, theme.id, item.id)}
+                              title="Marquer comme vérifié"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-slate-200 text-sm font-medium truncate">
+                                {item.label}
+                                {item.helpKey && (
+                                  <button type="button" onClick={()=>setHelpKey(item.helpKey!)} className="ml-2 text-xs px-1.5 py-0.5 rounded bg-slate-700 border border-slate-600 hover:bg-slate-600">Aide</button>
                                 )}
                               </div>
-                              
-                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  onClick={() => setSelectedTechnique(item.id)}
-                                  className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 hover:border-slate-400"
-                                >
-                                  📖 Détails
-                                </Button>
-                                
-                                {d.commands?.[0] && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={()=>copyText(d.commands![0]!)} 
-                                    className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 hover:border-slate-400"
-                                  >
-                                    💻 Copier
-                                  </Button>
-                                )}
-                              </div>
+                              {d.description && (
+                                <div className="text-xs text-slate-400 mt-0.5 line-clamp-2">{d.description}</div>
+                              )}
+                            </div>
+                            <div className="shrink-0 flex items-center gap-2">
+                              {d.commands?.[0] && (
+                                <Button size="sm" variant="outline" onClick={()=>copyText(d.commands![0]!)} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">Copier cmd</Button>
+                              )}
+                              <Button size="sm" variant="outline" onClick={()=>toggleExpanded(key)} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">
+                                {expanded[key] ? 'Masquer' : 'Détails'}
+                              </Button>
                             </div>
                           </div>
-                        );
-                      })}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+
+                          {expanded[key] && (
+                            <div className="px-4 pb-4 space-y-3">
+                              {d.commands && d.commands.length > 0 && (
+                                <div>
+                                  <div className="text-xs text-slate-400 mb-1">Commandes</div>
+                                  <div className="space-y-1">
+                                    {d.commands.map((cmd, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <pre className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs p-2 rounded overflow-x-auto"><code>{cmd}</code></pre>
+                                        <Button size="sm" variant="outline" onClick={()=>copyText(cmd)} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">Copier</Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {d.lookFors && d.lookFors.length > 0 && (
+                                <div>
+                                  <div className="text-xs text-slate-400 mb-1">À chercher</div>
+                                  <ul className="list-disc ml-5 text-sm text-slate-300 space-y-0.5">
+                                    {d.lookFors.map((l, i) => (<li key={i}>{l}</li>))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              {d.expected && d.expected.length > 0 && (
+                                <div>
+                                  <div className="text-xs text-slate-400 mb-1">Sorties attendues</div>
+                                  <ul className="list-disc ml-5 text-sm text-slate-300 space-y-0.5">
+                                    {d.expected.map((l, i) => (<li key={i}>{l}</li>))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      <HelpModal open={!!helpKey} onClose={()=>setHelpKey(null)} title={helpKey ? HELP_TOPICS[helpKey].title : ''}>
+        {helpKey ? HELP_TOPICS[helpKey].content : null}
+      </HelpModal>
 
       <TechniqueModal 
         open={!!selectedTechnique} 

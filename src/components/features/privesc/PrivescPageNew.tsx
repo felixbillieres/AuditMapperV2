@@ -7,8 +7,10 @@ import { createPortal } from 'react-dom';
 import {
   Shield,
   Wrench,
+  Info,
   Search,
   RefreshCw,
+  Bug,
   Clipboard,
   Upload,
   Download,
@@ -222,7 +224,7 @@ const TechniqueModal: React.FC<{
   onClose: () => void; 
   techniqueId: string; 
   mode: PrivescMode;
-}> = ({ open, onClose, techniqueId }) => {
+}> = ({ open, onClose, techniqueId, mode }) => {
   if (!open) return null;
   
   const technique = DETAILS[techniqueId];

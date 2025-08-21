@@ -61,14 +61,7 @@ const LandingPage: React.FC = () => {
       color: "from-blue-500 to-cyan-500",
       route: "/host-manager"
     },
-    {
-      title: "Config Generator", 
-      description: "Générateur automatique de fichiers de configuration pour vos pentests",
-      icon: Network,
-      features: ["Fichiers /etc/hosts", "Config Kerberos", "ProxyChains", "Templates custom"],
-      color: "from-green-500 to-emerald-500",
-      route: "/config-generator"
-    },
+
     {
       title: "Calendar",
       description: "Kanban + Timer global pour planifier vos tâches de pentest",
@@ -99,7 +92,7 @@ const LandingPage: React.FC = () => {
       icon: Shield,
       features: ["Checklist interactive", "Suivi progression", "Techniques détaillées", "Export rapport"],
       color: "from-indigo-500 to-purple-500",
-      route: "/privesc-helper"
+      route: "/privesc"
     },
     {
       title: "File Transfer",

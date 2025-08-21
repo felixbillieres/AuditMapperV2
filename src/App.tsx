@@ -10,7 +10,7 @@ import LiveReportPage from '@/components/features/reports/LiveReportPage';
 import PrivescPage from '@/components/features/privesc/PrivescPage';
 import ADMRPage from '@/components/features/admr/ADMRPage';
 import GrepMasterPage from '@/components/features/grepmaster/GrepMasterPage';
-import ConfigGeneratorPage from '@/components/features/config-generator/ConfigGeneratorPage';
+
 // import TemplateGeneratorPage from '@/components/features/template-generator/TemplateGeneratorPage';
 import StandalonePlaygroundPage from '@/components/features/security-lab/HTBLabPage';
 // Removed AdKerberosCanvasPage import
@@ -23,7 +23,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/host-manager" element={<HostManager />} />
-        <Route path="/config-generator" element={<ConfigGeneratorPage />} />
+
         {/* <Route path="/template-generator" element={<TemplateGeneratorPage />} /> */}
         <Route path="/standalone-playground" element={<StandalonePlaygroundPage />} />
         <Route path="/calendar" element={<CalendarPage />} />

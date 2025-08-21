@@ -20,7 +20,7 @@ const sections = [
     title: 'Tools',
     items: [
       { to: '/grep-master', label: 'Grep Master', icon: Search },
-      { to: '/config-generator', label: 'Config Generator', icon: Network },
+      { to: '/privesc', label: 'PrivEsc Helper', icon: Shield },
       { to: '/file-transfer', label: 'File Transfer', icon: FileText },
       { to: '/calendar', label: 'Calendar', icon: CalendarIcon },
       { to: '/pivot-master', label: 'Pivot Master', icon: Zap },
