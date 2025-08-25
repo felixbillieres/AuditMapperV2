@@ -15,6 +15,7 @@ const OUTPUT_TYPES = [
   { value: 'auto', label: 'Détection automatique' },
   { value: 'secretsdump', label: 'Secretsdump' },
   { value: 'mimikatz', label: 'Mimikatz' },
+  { value: 'netexec', label: 'NetExec (CME/CrackMapExec)' },
   { value: 'sam', label: 'SAM Dump' },
   { value: 'lsass', label: 'LSASS Dump' },
   { value: 'rpcclient', label: 'RPC Client' },
@@ -61,6 +62,7 @@ const GrepMasterPage: React.FC = () => {
     const tests: Array<{t: string; r: RegExp}> = [
       { t: 'secretsdump', r: /^[^:]+:\d+:[a-fA-F0-9]{32}:[a-fA-F0-9]{32}:::/m },
       { t: 'mimikatz', r: /\*\s*Username\s*:/i },
+      { t: 'netexec', r: /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+.*-Username-.*-Last PW Set-/m },
       { t: 'nmap', r: /Nmap scan report|PORT\s+STATE\s+SERVICE/i },
       { t: 'passwd', r: /^[^:]+:x:\d+:\d+:/m },
       { t: 'shadow', r: /^[^:]+:\$\d+\$/m },
@@ -88,11 +90,46 @@ const GrepMasterPage: React.FC = () => {
     return counts;
   }, [raw]);
 
+  // Fonction spécialisée pour extraire les usernames depuis les dumps NetExec
+  function extractNetExecUsers(text: string): string[] {
+    const users: string[] = [];
+    const lines = text.split('\n');
+    
+    for (const line of lines) {
+      // Chercher les lignes qui contiennent des usernames (après la ligne d'en-tête)
+      // Format: SMB         192.168.144.175 445    RESOURCEDC       Administrator                 2022-02-11 17:21:20 0       Built-in account...
+      const userMatch = line.match(/^SMB\s+[\d\.]+\s+\d+\s+\w+\s+([a-zA-Z0-9\._-]+)\s+(?:\d{4}-\d{2}-\d{2}|<never>)/);
+      if (userMatch) {
+        const username = userMatch[1].trim();
+        // Filtrer les mots-clés qui ne sont pas des usernames
+        if (username && 
+            !username.includes('-Username-') && 
+            !username.includes('-Last') &&
+            !username.includes('-BadPW-') &&
+            !username.includes('-Description-') &&
+            username !== 'Username' &&
+            username.length > 0) {
+          users.push(username);
+        }
+      }
+    }
+    
+    return Array.from(new Set(users)); // Déduplication
+  }
+
   function extract(type: ExtractionType) {
     if (!raw.trim()) { setResults([]); setCurrentType(''); return; }
     let out: string[] = [];
     switch (type) {
-      case 'users': out = (raw.match(/(?:user|username|login)[\s:=]+([a-zA-Z0-9_.-]+)/gi) || []).map(m => m.split(/[\s:=]+/)[1]); break;
+      case 'users': {
+        // Parser spécifique pour NetExec si détecté
+        if (detected === 'netexec') {
+          out = extractNetExecUsers(raw);
+        } else {
+          out = (raw.match(/(?:user|username|login)[\s:=]+([a-zA-Z0-9_.-]+)/gi) || []).map(m => m.split(/[\s:=]+/)[1]);
+        }
+        break;
+      }
       case 'hashes': {
         const hexes = (raw.match(/[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}|[a-fA-F0-9]{128}/g) || [])
           .filter(h => h.toLowerCase() !== '31d6cfe0d16ae931b73c59d7e0c089c0' && h.toLowerCase() !== 'aad3b435b51404eeaad3b435b51404ee');
@@ -274,7 +311,19 @@ const GrepMasterPage: React.FC = () => {
                   className="bg-slate-900 border-slate-700 text-slate-100"
                 />
                 <div className="flex gap-2">
-                  <Button onClick={() => {/* simple re-analyse trigger */}} className="bg-blue-600 hover:bg-blue-700 text-white">Analyser</Button>
+                  <Button onClick={() => {
+                    // Analyser automatiquement selon le type détecté
+                    if (detected === 'netexec') {
+                      extract('users');
+                    } else if (detected === 'secretsdump' || detected === 'mimikatz') {
+                      extract('credentials');
+                    } else if (detected === 'nmap') {
+                      extract('ports');
+                    } else {
+                      // Pour les autres types, essayer d'extraire les utilisateurs par défaut
+                      extract('users');
+                    }
+                  }} className="bg-blue-600 hover:bg-blue-700 text-white">Analyser</Button>
                   <Button variant="outline" onClick={() => setRaw('')} className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">Vider</Button>
                 </div>
               </CardContent>

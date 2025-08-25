@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Server, Calendar as CalendarIcon, Network, FileText, Shield, Search, Zap, Code, FileEdit } from 'lucide-react';
+import { Home, Server, Calendar as CalendarIcon, Network, FileText, Shield, Search, Zap, Code, FileEdit, Eye } from 'lucide-react';
 
 const sections = [
   {
@@ -20,6 +20,7 @@ const sections = [
     title: 'Tools',
     items: [
       { to: '/template-generator', label: 'Template Generator', icon: FileEdit },
+      { to: '/autorecon-viewer', label: 'AutoRecon Viewer', icon: Eye },
       { to: '/grep-master', label: 'Grep Master', icon: Search },
       { to: '/privesc', label: 'PrivEsc Helper', icon: Shield },
       { to: '/file-transfer', label: 'File Transfer', icon: FileText },
