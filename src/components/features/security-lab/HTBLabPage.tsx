@@ -20,44 +20,97 @@ function parsePortScanOutput(text: string): HTBService[] {
   const lines = text.split('\n').filter(line => line.trim());
   
   for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    // Ignorer les lignes de script nmap (commençant par |, |_, ou contenant des timestamps/certificats)
+    // Mais ne pas ignorer les lignes de ports qui peuvent contenir des timestamps dans la version
+    if ((trimmedLine.startsWith('|') || 
+        trimmedLine.startsWith('_') ||
+        trimmedLine.includes('valid before:') ||
+        trimmedLine.includes('valid after:') ||
+        trimmedLine.includes('deviation:') ||
+        trimmedLine.includes('median:') ||
+        trimmedLine.includes('Service Info:') ||
+        trimmedLine.includes('Host script results:') ||
+        trimmedLine.includes('Service detection performed') ||
+        trimmedLine.includes('Nmap done:') ||
+        trimmedLine.match(/^\d{4}-\d{2}-\d{2}/) || // Dates ISO
+        trimmedLine.match(/mean:\s*\d+h\d+m\d+s/)) && // Temps de décalage
+        !trimmedLine.match(/^\d+\/(tcp|udp)\s+open/) // Ne pas ignorer les lignes de ports valides
+    ) {
+      continue;
+    }
+    
+    // Ignorer les lignes qui ne sont que des dates ou timestamps (pas dans une version de service)
+    if (trimmedLine.includes('date:') && !trimmedLine.match(/^\d+\/(tcp|udp)\s+open/) ||
+        trimmedLine.includes('start_date:') && !trimmedLine.match(/^\d+\/(tcp|udp)\s+open/) ||
+        trimmedLine.includes('server time:') && !trimmedLine.match(/^\d+\/(tcp|udp)\s+open/)) {
+      continue;
+    }
+    
     // Format nmap standard: "22/tcp   open  ssh     OpenSSH 8.2p1"
-    const nmapMatch = line.match(/(\d+)\/(tcp|udp)\s+open\s+(\S+)(?:\s+(.+?))?$/);
+    const nmapMatch = trimmedLine.match(/^(\d+)\/(tcp|udp)\s+open\s+(\S+)(?:\s+(.+?))?$/);
     if (nmapMatch) {
-      services.push({
-        port: nmapMatch[1],
-        proto: nmapMatch[2] as 'tcp' | 'udp',
-        service: nmapMatch[3],
-        version: nmapMatch[4]?.trim() || undefined,
-        notes: ''
-      });
+      const port = nmapMatch[1];
+      const proto = nmapMatch[2] as 'tcp' | 'udp';
+      const service = nmapMatch[3];
+      const version = nmapMatch[4]?.trim();
+      
+      // Vérifier que le port est valide (1-65535)
+      const portNum = parseInt(port);
+      if (portNum >= 1 && portNum <= 65535) {
+        services.push({
+          port,
+          proto,
+          service,
+          version: version || undefined,
+          notes: ''
+        });
+      }
       continue;
     }
     
     // Format rustscan: "22 -> ssh"
-    const rustScanMatch = line.match(/(\d+)\s*->\s*(\S+)/);
+    const rustScanMatch = trimmedLine.match(/^(\d+)\s*->\s*(\S+)$/);
     if (rustScanMatch) {
-      services.push({
-        port: rustScanMatch[1],
-        proto: 'tcp',
-        service: rustScanMatch[2],
-        notes: ''
-      });
+      const port = rustScanMatch[1];
+      const portNum = parseInt(port);
+      if (portNum >= 1 && portNum <= 65535) {
+        services.push({
+          port,
+          proto: 'tcp',
+          service: rustScanMatch[2],
+          notes: ''
+        });
+      }
       continue;
     }
     
-    // Format simple: "80/tcp" ou "443"
-    const simpleMatch = line.match(/(\d+)(?:\/(tcp|udp))?/);
-    if (simpleMatch && !line.includes('closed') && !line.includes('filtered')) {
-      services.push({
-        port: simpleMatch[1],
-        proto: (simpleMatch[2] as 'tcp' | 'udp') || 'tcp',
-        service: 'unknown',
-        notes: ''
-      });
+    // Format simple: "80/tcp" ou "443" (seulement si la ligne est très courte et simple)
+    const simpleMatch = trimmedLine.match(/^(\d+)(?:\/(tcp|udp))?$/);
+    if (simpleMatch && 
+        !trimmedLine.includes('closed') && 
+        !trimmedLine.includes('filtered') &&
+        trimmedLine.length < 20) { // Éviter les longues lignes contenant des dates
+      const port = simpleMatch[1];
+      const portNum = parseInt(port);
+      if (portNum >= 1 && portNum <= 65535) {
+        services.push({
+          port,
+          proto: (simpleMatch[2] as 'tcp' | 'udp') || 'tcp',
+          service: 'unknown',
+          notes: ''
+        });
+      }
     }
   }
   
-  return services;
+  // Dédupliquer les services par port/protocole
+  const uniqueServices = services.filter((service, index, self) => 
+    index === self.findIndex(s => s.port === service.port && s.proto === service.proto)
+  );
+  
+  return uniqueServices;
 }
 
 // Fonction pour obtenir la couleur selon la difficulté

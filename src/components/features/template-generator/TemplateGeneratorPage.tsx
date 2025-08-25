@@ -19,12 +19,145 @@ interface ParsedService {
 function parseNmapSimple(nmapText: string): ParsedService[] {
   const lines = nmapText.split(/\r?\n/);
   const services: ParsedService[] = [];
-  const re = /^(\d+)\/(tcp|udp)\s+(open|closed|filtered|open\|filtered)\s+([\w\-\?\._]+)(?:\s+(.*))?$/i;
+  
+  // Regex ULTRA stricte pour capturer UNIQUEMENT les vraies lignes de service nmap
+  // Format exact attendu: PORT/PROTO STATE SERVICE [VERSION]
+  // Doit commencer par un port, suivi de /tcp ou /udp, puis un état valide, puis un service valide
+  // Le service peut se terminer par ? (pour les services inconnus)
+  const serviceRegex = /^(\d{1,5})\/(tcp|udp)\s+(open|closed|filtered|open\|filtered)\s+([a-zA-Z][a-zA-Z0-9\-_\/]*\??)\s*(.*)$/i;
+  
   for (const line of lines) {
-    const m = line.match(re);
-    if (m) services.push({ port: Number(m[1]), proto: m[2], state: m[3], service: m[4], version: m[5]?.trim() });
+    const trimmedLine = line.trim();
+    
+    // Ignorer les lignes vides
+    if (!trimmedLine) continue;
+    
+    // PREMIERE VERIFICATION: La ligne doit ressembler à un service Nmap
+    // Doit commencer par un nombre suivi de /tcp ou /udp
+    if (!/^\d{1,5}\/(tcp|udp)\s+/i.test(trimmedLine)) {
+      continue;
+    }
+    
+    // DEUXIEME VERIFICATION: Ignorer TOUTES les lignes de métadonnées Nmap
+    if (trimmedLine.startsWith('|') || 
+        trimmedLine.startsWith('|_') || 
+        trimmedLine.startsWith('Warning:') ||
+        trimmedLine.startsWith('Device type:') ||
+        trimmedLine.startsWith('Running:') ||
+        trimmedLine.startsWith('OS CPE:') ||
+        trimmedLine.startsWith('OS details:') ||
+        trimmedLine.startsWith('TCP/IP fingerprint:') ||
+        trimmedLine.startsWith('Uptime guess:') ||
+        trimmedLine.startsWith('Network Distance:') ||
+        trimmedLine.startsWith('TCP Sequence Prediction:') ||
+        trimmedLine.startsWith('IP ID Sequence Generation:') ||
+        trimmedLine.startsWith('Service Info:') ||
+        trimmedLine.startsWith('TRACEROUTE') ||
+        trimmedLine.startsWith('HOP') ||
+        trimmedLine.startsWith('NSE:') ||
+        trimmedLine.startsWith('Initiating NSE') ||
+        trimmedLine.startsWith('Completed NSE') ||
+        trimmedLine.startsWith('Read data files') ||
+        trimmedLine.startsWith('OS and Service detection') ||
+        trimmedLine.startsWith('Nmap done:') ||
+        trimmedLine.startsWith('Raw packets') ||
+        trimmedLine.includes('PORT') ||
+        trimmedLine.includes('STATE') ||
+        trimmedLine.includes('SERVICE') ||
+        trimmedLine.includes('REASON') ||
+        trimmedLine.includes('VERSION') ||
+        // Ignorer les lignes qui contiennent des certificats SSL
+        trimmedLine.startsWith('ssl-cert:') ||
+        trimmedLine.startsWith('ssl-date:') ||
+        trimmedLine.startsWith('Subject:') ||
+        trimmedLine.startsWith('Subject Alternative Name:') ||
+        trimmedLine.startsWith('Not valid before:') ||
+        trimmedLine.startsWith('Not valid after:') ||
+        trimmedLine.startsWith('commonName=') ||
+        trimmedLine.startsWith('DNS:') ||
+        // Ignorer les lignes qui contiennent des métadonnées SMB
+        trimmedLine.startsWith('smb2-security-mode:') ||
+        trimmedLine.startsWith('Message signing') ||
+        trimmedLine.startsWith('clock-skew:') ||
+        trimmedLine.startsWith('smb2-time:') ||
+        trimmedLine.startsWith('start_date:') ||
+        trimmedLine.startsWith('date:') ||
+        // Ignorer les lignes qui contiennent des caractères spéciaux
+        trimmedLine.startsWith('othername:') ||
+        trimmedLine.startsWith('unsupported') ||
+        trimmedLine.startsWith('Site:') ||
+        trimmedLine.startsWith('Domain:') ||
+        trimmedLine.startsWith('Host:') ||
+        trimmedLine.startsWith('OS:') ||
+        trimmedLine.startsWith('CPE:') ||
+        // Ignorer les lignes host script results et autres métadonnées
+        trimmedLine.startsWith('Host script results:') ||
+        trimmedLine.startsWith('Service detection performed') ||
+        trimmedLine.startsWith('Please report any incorrect results') ||
+        // Ignorer les lignes contenant des dates spécifiques qui peuvent être parsées comme des ports
+        /^\d{4}-\d{2}-\d{2}/.test(trimmedLine) ||
+        /^\d{1,2}\/\d{1,2}\/\d{4}/.test(trimmedLine) ||
+        // Ignorer les lignes qui contiennent uniquement des métadonnées (pas de vrai format nmap)
+        trimmedLine.includes('scanner time') ||
+        trimmedLine.includes('deviation') ||
+        trimmedLine.includes('median') ||
+        trimmedLine.includes('mean:') ||
+        trimmedLine.includes('scanned in') ||
+        trimmedLine.includes('seconds')) {
+      continue;
+    }
+    
+    // TROISIEME VERIFICATION: Vérifier que ça ne contient pas de dates formatées
+    // Éviter les faux positifs comme "2025/tcp", "2021/tcp", etc. qui viennent des dates
+    if (/^(19|20)\d{2}\/(tcp|udp)/i.test(trimmedLine)) {
+      continue;
+    }
+    
+    // QUATRIEME VERIFICATION: Essayer de matcher la ligne avec le regex de service
+    const match = trimmedLine.match(serviceRegex);
+    if (match) {
+      const [, port, proto, state, service, version] = match;
+      
+      // CINQUIEME VERIFICATION: Le service doit être dans la liste des services valides
+      const validServices = [
+        'ssh', 'http', 'https', 'ftp', 'ftps', 'smtp', 'smtps', 'pop3', 'pop3s', 'imap', 'imaps', 
+        'dns', 'dhcp', 'tftp', 'telnet', 'rsh', 'rlogin', 'rexec', 'finger', 'nfs', 'rpc', 
+        'netbios', 'netbios-ns', 'netbios-dgm', 'netbios-ssn', 'smb', 'cifs', 'ldap', 'ldaps', 
+        'kerberos', 'kerberos-sec', 'mysql', 'postgresql', 'oracle', 'mssql', 'redis', 'mongodb',
+        'elasticsearch', 'rabbitmq', 'apache', 'nginx', 'iis', 'tomcat', 'jboss', 'weblogic',
+        'websphere', 'glassfish', 'jetty', 'node', 'snmp', 'ntp', 'sip', 'rtsp', 'ipp',
+        // Services Windows spécifiques
+        'domain', 'msrpc', 'microsoft-ds', 'kpasswd5', 'ncacn_http', 'ssl/ldap', 'mc-nmf',
+        // Services communs supplémentaires
+        'vnc', 'rdp', 'x11', 'ssh-rsa', 'ssl/http', 'ssl/https', 'ssl/smtp', 'ssl/pop3', 
+        'ssl/imap', 'ssl/ftp', 'unknown', 'tcpwrapped'
+      ];
+      
+      // Nettoyer le nom du service (enlever le ? à la fin si présent)
+      const cleanServiceName = service.replace(/\?$/, '').toLowerCase();
+      
+      // SIXIEME VERIFICATION: S'assurer que le service est valide et le port raisonnable
+      if (validServices.includes(cleanServiceName)) {
+        const portNum = Number(port);
+        if (portNum >= 1 && portNum <= 65535) {
+          services.push({
+            port: portNum,
+            proto: proto as 'tcp' | 'udp',
+            state: state,
+            service: service,
+            version: version?.trim() || undefined
+          });
+        }
+      }
+    }
   }
-  return services.sort((a, b) => a.port - b.port);
+  
+  // Trier par port et supprimer les doublons
+  const uniqueServices = services.filter((service, index, self) => 
+    index === self.findIndex(s => s.port === service.port && s.proto === service.proto)
+  );
+  
+  return uniqueServices.sort((a, b) => a.port - b.port);
 }
 
 function generateMarkdown(opts: { name: string; date: string; difficulty: string; os: string; goal: string; tags: string; services: ParsedService[]; }): string {
@@ -90,9 +223,152 @@ const TemplateGeneratorPage: React.FC = () => {
 
   const services = useMemo(() => parseNmapSimple(nmap), [nmap]);
   const markdown = useMemo(() => generateMarkdown({ name, date: dateStr, difficulty, os, goal, tags, services }), [name, dateStr, difficulty, os, goal, tags, services]);
+  
+  // Fonction de debug pour analyser le parsing
+  const debugParsing = () => {
+    if (!nmap) return [];
+    const lines = nmap.split(/\r?\n/);
+    const debugInfo = lines.map((line, index) => {
+      const trimmed = line.trim();
+      
+      // Utiliser la même logique que le parser principal
+      const looksLikeService = /^\d{1,5}\/(tcp|udp)\s+/i.test(trimmed);
+      const isService = /^(\d{1,5})\/(tcp|udp)\s+(open|closed|filtered|open\|filtered)\s+([a-zA-Z][a-zA-Z0-9\-_\/]*\??)\s*(.*)$/i.test(trimmed);
+      
+      // Règles de filtrage identiques à celles du parser principal
+      const isMetadata = trimmed.startsWith('|') || 
+                        trimmed.startsWith('|_') || 
+                        trimmed.startsWith('Warning:') ||
+                        trimmed.startsWith('Device type:') ||
+                        trimmed.startsWith('Running:') ||
+                        trimmed.startsWith('OS CPE:') ||
+                        trimmed.startsWith('OS details:') ||
+                        trimmed.startsWith('TCP/IP fingerprint:') ||
+                        trimmed.startsWith('Uptime guess:') ||
+                        trimmed.startsWith('Network Distance:') ||
+                        trimmed.startsWith('TCP Sequence Prediction:') ||
+                        trimmed.startsWith('IP ID Sequence Generation:') ||
+                        trimmed.startsWith('Service Info:') ||
+                        trimmed.startsWith('TRACEROUTE') ||
+                        trimmed.startsWith('HOP') ||
+                        trimmed.startsWith('NSE:') ||
+                        trimmed.startsWith('Initiating NSE') ||
+                        trimmed.startsWith('Completed NSE') ||
+                        trimmed.startsWith('Read data files') ||
+                        trimmed.startsWith('OS and Service detection') ||
+                        trimmed.startsWith('Nmap done:') ||
+                        trimmed.startsWith('Raw packets') ||
+                        trimmed.includes('PORT') ||
+                        trimmed.includes('STATE') ||
+                        trimmed.includes('SERVICE') ||
+                        trimmed.includes('REASON') ||
+                        trimmed.includes('VERSION') ||
+                        // Ignorer les lignes qui contiennent des certificats SSL
+                        trimmed.startsWith('ssl-cert:') ||
+                        trimmed.startsWith('ssl-date:') ||
+                        trimmed.startsWith('Subject:') ||
+                        trimmed.startsWith('Subject Alternative Name:') ||
+                        trimmed.startsWith('Not valid before:') ||
+                        trimmed.startsWith('Not valid after:') ||
+                        trimmed.startsWith('commonName=') ||
+                        trimmed.startsWith('DNS:') ||
+                        // Ignorer les lignes qui contiennent des métadonnées SMB
+                        trimmed.startsWith('smb2-security-mode:') ||
+                        trimmed.startsWith('Message signing') ||
+                        trimmed.startsWith('clock-skew:') ||
+                        trimmed.startsWith('smb2-time:') ||
+                        trimmed.startsWith('start_date:') ||
+                        trimmed.startsWith('date:') ||
+                        // Ignorer les lignes qui contiennent des caractères spéciaux
+                        trimmed.startsWith('othername:') ||
+                        trimmed.startsWith('unsupported') ||
+                        trimmed.startsWith('Site:') ||
+                        trimmed.startsWith('Domain:') ||
+                        trimmed.startsWith('Host:') ||
+                        trimmed.startsWith('OS:') ||
+                        trimmed.startsWith('CPE:') ||
+                        // Ignorer les lignes host script results et autres métadonnées
+                        trimmed.startsWith('Host script results:') ||
+                        trimmed.startsWith('Service detection performed') ||
+                        trimmed.startsWith('Please report any incorrect results') ||
+                        // Ignorer les lignes contenant des dates spécifiques qui peuvent être parsées comme des ports
+                        /^\d{4}-\d{2}-\d{2}/.test(trimmed) ||
+                        /^\d{1,2}\/\d{1,2}\/\d{4}/.test(trimmed) ||
+                        // Ignorer les lignes qui contiennent uniquement des métadonnées (pas de vrai format nmap)
+                        trimmed.includes('scanner time') ||
+                        trimmed.includes('deviation') ||
+                        trimmed.includes('median') ||
+                        trimmed.includes('mean:') ||
+                        trimmed.includes('scanned in') ||
+                        trimmed.includes('seconds');
+      
+      // Vérifier si c'est une date formatée qui ressemble à un port
+      const isDateLikePort = /^(19|20)\d{2}\/(tcp|udp)/i.test(trimmed);
+      
+      // Déterminer la catégorie avec plus de précision
+      let category = 'other';
+      if (isDateLikePort) {
+        category = 'date-false-positive';
+      } else if (!looksLikeService) {
+        if (isMetadata) {
+          category = 'metadata';
+        } else if (!trimmed) {
+          category = 'empty';
+        } else {
+          category = 'other';
+        }
+      } else if (looksLikeService && !isMetadata) {
+        // Vérifier si c'est un vrai service valide
+        const match = trimmed.match(/^(\d{1,5})\/(tcp|udp)\s+(open|closed|filtered|open\|filtered)\s+([a-zA-Z][a-zA-Z0-9\-_\/]*\??)\s*(.*)$/i);
+        if (match) {
+          const [, , , , service] = match;
+          const validServices = [
+            'ssh', 'http', 'https', 'ftp', 'ftps', 'smtp', 'smtps', 'pop3', 'pop3s', 'imap', 'imaps', 
+            'dns', 'dhcp', 'tftp', 'telnet', 'rsh', 'rlogin', 'rexec', 'finger', 'nfs', 'rpc', 
+            'netbios', 'netbios-ns', 'netbios-dgm', 'netbios-ssn', 'smb', 'cifs', 'ldap', 'ldaps', 
+            'kerberos', 'kerberos-sec', 'mysql', 'postgresql', 'oracle', 'mssql', 'redis', 'mongodb',
+            'elasticsearch', 'rabbitmq', 'apache', 'nginx', 'iis', 'tomcat', 'jboss', 'weblogic',
+            'websphere', 'glassfish', 'jetty', 'node', 'snmp', 'ntp', 'sip', 'rtsp', 'ipp',
+            // Services Windows spécifiques
+            'domain', 'msrpc', 'microsoft-ds', 'kpasswd5', 'ncacn_http', 'ssl/ldap', 'mc-nmf',
+            // Services communs supplémentaires
+            'vnc', 'rdp', 'x11', 'ssh-rsa', 'ssl/http', 'ssl/https', 'ssl/smtp', 'ssl/pop3', 
+            'ssl/imap', 'ssl/ftp', 'unknown', 'tcpwrapped'
+          ];
+          
+          // Nettoyer le nom du service (enlever le ? à la fin si présent)
+          const cleanServiceName = service.replace(/\?$/, '').toLowerCase();
+          
+          if (validServices.includes(cleanServiceName)) {
+            category = 'service';
+          } else {
+            category = 'invalid-service';
+          }
+        } else {
+          category = 'malformed-service';
+        }
+      } else if (isMetadata) {
+        category = 'metadata';
+      }
+      
+      return {
+        lineNumber: index + 1,
+        content: trimmed,
+        isService,
+        isMetadata,
+        isIgnored: isMetadata || !trimmed || (trimmed.includes('PORT') && trimmed.includes('STATE')) || isDateLikePort,
+        category: category
+      };
+    }).filter(info => info.content); // Filtrer les lignes vides
+    
+    return debugInfo;
+  };
+  
+  const debugInfo = debugParsing();
 
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('preview');
   const [markdownDraft, setMarkdownDraft] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
   const effectiveMarkdown = markdownDraft || markdown;
 
   const copyToClipboard = async () => {
@@ -190,6 +466,13 @@ const TemplateGeneratorPage: React.FC = () => {
                       a.href = url; a.download = `${name.replace(/\s+/g, '_') || 'template'}.md`;
                       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                     }}>Télécharger .md</Button>
+                    <Button 
+                      variant="outline" 
+                      className={`${showDebug ? 'bg-blue-700 border-blue-600 text-blue-200' : 'bg-slate-700 border-slate-600 text-slate-200'} hover:bg-slate-600`} 
+                      onClick={() => setShowDebug(!showDebug)}
+                    >
+                      🔍 Debug Parsing
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -205,6 +488,143 @@ const TemplateGeneratorPage: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Section Debug Parsing */}
+            {showDebug && (
+              <Card className="border-slate-700 bg-slate-800 lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-slate-100">🔍 Debug Parsing Nmap</CardTitle>
+                  <div className="text-sm text-slate-400">
+                    Analyse détaillée de la sortie nmap et des services détectés
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Services détectés */}
+                    <div>
+                      <h4 className="text-lg font-semibold text-slate-200 mb-3">✅ Services Détectés ({services.length})</h4>
+                      {services.length > 0 ? (
+                        <div className="space-y-2">
+                          {services.map((service, index) => (
+                            <div key={index} className="p-3 bg-green-900/20 border border-green-700 rounded">
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono text-green-300">
+                                  {service.port}/{service.proto} - {service.service}
+                                </span>
+                                <span className="text-xs px-2 py-1 bg-green-700 text-green-100 rounded">
+                                  {service.state}
+                                </span>
+                              </div>
+                              {service.version && (
+                                <div className="text-sm text-green-200 mt-1">
+                                  {service.version}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-slate-400 text-center py-8">
+                          Aucun service détecté. Vérifiez le format de votre nmap.
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Analyse ligne par ligne */}
+                    <div>
+                      <h4 className="text-lg font-semibold text-slate-200 mb-3">📊 Analyse Ligne par Ligne</h4>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {debugInfo.map((info, index) => (
+                          <div 
+                            key={index} 
+                            className={`p-2 rounded text-xs font-mono ${
+                              info.category === 'service' 
+                                ? 'bg-green-900/20 border border-green-700 text-green-300'
+                                : info.category === 'metadata'
+                                ? 'bg-blue-900/20 border border-blue-700 text-blue-300'
+                                : info.category === 'invalid-service'
+                                ? 'bg-red-900/20 border border-red-700 text-red-300'
+                                : info.category === 'date-false-positive'
+                                ? 'bg-orange-900/20 border border-orange-700 text-orange-300'
+                                : info.category === 'malformed-service'
+                                ? 'bg-purple-900/20 border border-purple-700 text-purple-300'
+                                : info.isIgnored
+                                ? 'bg-slate-700/50 border border-slate-600 text-slate-400'
+                                : 'bg-yellow-900/20 border border-yellow-700 text-yellow-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs opacity-70">Ligne {info.lineNumber}</span>
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                info.category === 'service' 
+                                  ? 'bg-green-700 text-green-100'
+                                  : info.category === 'metadata'
+                                  ? 'bg-blue-700 text-blue-100'
+                                  : info.category === 'invalid-service'
+                                  ? 'bg-red-700 text-red-100'
+                                  : info.category === 'date-false-positive'
+                                  ? 'bg-orange-700 text-orange-100'
+                                  : info.category === 'malformed-service'
+                                  ? 'bg-purple-700 text-purple-100'
+                                  : info.isIgnored
+                                  ? 'bg-slate-600 text-slate-300'
+                                  : 'bg-yellow-700 text-yellow-100'
+                              }`}>
+                                {info.category}
+                              </span>
+                            </div>
+                            <div className="mt-1 break-all">
+                              {info.content}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Statistiques */}
+                  <div className="mt-6 p-4 bg-slate-700/30 rounded border border-slate-600">
+                    <h5 className="text-sm font-semibold text-slate-200 mb-2">📈 Statistiques de Parsing</h5>
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold text-green-400">{services.length}</div>
+                        <div className="text-xs text-slate-400">Services valides</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-red-400">
+                          {debugInfo.filter(info => info.category === 'invalid-service').length}
+                        </div>
+                        <div className="text-xs text-slate-400">Services invalides</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-orange-400">
+                          {debugInfo.filter(info => info.category === 'date-false-positive').length}
+                        </div>
+                        <div className="text-xs text-slate-400">Faux positifs dates</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-blue-400">
+                          {debugInfo.filter(info => info.category === 'metadata').length}
+                        </div>
+                        <div className="text-xs text-slate-400">Métadonnées</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-yellow-400">
+                          {debugInfo.filter(info => info.category === 'other').length}
+                        </div>
+                        <div className="text-xs text-slate-400">Autres lignes</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-slate-400">
+                          {debugInfo.filter(info => info.isIgnored).length}
+                        </div>
+                        <div className="text-xs text-slate-400">Ignorées</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
