@@ -223,9 +223,9 @@ const HostsPanel: React.FC = () => {
                 <div className="bg-slate-700/30 rounded p-3">
                   <h4 className="text-sm font-medium text-slate-300 mb-2">Ports ouverts</h4>
                   <div className="flex flex-wrap gap-1">
-                    {openPorts.slice(0, 6).map(port => (
+                    {openPorts.slice(0, 6).map((port, index) => (
                       <span
-                        key={`${port.port}-${port.protocol}`}
+                        key={`${host.ip}-${port.port}-${port.protocol}-${index}`}
                         className="px-2 py-1 bg-green-900/30 text-green-300 text-xs rounded"
                       >
                         {port.port}/{port.protocol}
@@ -243,8 +243,8 @@ const HostsPanel: React.FC = () => {
                 <div className="bg-slate-700/30 rounded p-3">
                   <h4 className="text-sm font-medium text-slate-300 mb-2">Services principaux</h4>
                   <div className="space-y-1">
-                    {host.services.slice(0, 3).map(service => (
-                      <div key={`${service.port}-${service.name}`} className="text-xs text-slate-300">
+                    {host.services.slice(0, 3).map((service, index) => (
+                      <div key={`${host.ip}-${service.port}-${service.name}-${index}`} className="text-xs text-slate-300">
                         {service.name} ({service.port}/{service.protocol})
                       </div>
                     ))}
@@ -313,8 +313,8 @@ const HostsPanel: React.FC = () => {
                   <div>
                     <h4 className="text-lg font-medium text-white mb-2">Tous les ports</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {host.ports.map(port => (
-                        <div key={`${port.port}-${port.protocol}`} className="bg-slate-700/30 rounded p-3">
+                      {host.ports.map((port, index) => (
+                        <div key={`${host.ip}-${port.port}-${port.protocol}-${index}`} className="bg-slate-700/30 rounded p-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-white font-medium">
                               {port.port}/{port.protocol}
@@ -337,8 +337,8 @@ const HostsPanel: React.FC = () => {
                     <div>
                       <h4 className="text-lg font-medium text-white mb-2">Services détaillés</h4>
                       <div className="space-y-3">
-                        {host.services.map(service => (
-                          <div key={`${service.port}-${service.name}`} className="bg-slate-700/30 rounded p-4">
+                        {host.services.map((service, index) => (
+                          <div key={`${host.ip}-${service.port}-${service.name}-${index}`} className="bg-slate-700/30 rounded p-4">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <Terminal className="w-4 h-4 text-blue-400" />

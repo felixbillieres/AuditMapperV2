@@ -28,6 +28,8 @@ interface NetworkVisualizationProps {
   onNodeSelect?: (host: Host) => void;
   selectedHost?: Host | null;
   uiRightOffset?: number; // Décalage des éléments en haut à droite (px)
+  showLabels?: boolean;
+  graphStyle?: 'bloodhound';
 }
 
 interface DeviceType {
@@ -46,19 +48,20 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   onNodeSelect,
   selectedHost,
   uiRightOffset,
+  showLabels: externalShowLabels = true,
+  graphStyle: externalGraphStyle = 'bloodhound',
 }) => {
   const networkRef = useRef<HTMLDivElement>(null);
   const networkInstance = useRef<Network | null>(null);
   const { networkNodes, updateNetworkNode } = useHostStore();
   // Accéder au store pour mettre à jour les connexions lors des suppressions
   const { hosts: hostsMap, updateHost } = useHostStore();
-  const [showLegend, setShowLegend] = useState(true);
-  const [showLabels, setShowLabels] = useState(true);
-  const [graphStyle, setGraphStyle] = useState<'icons' | 'glow' | 'circles'>('glow'); // Style 1: icônes, Style 2: glow, Style 3: cercles
+  const [showLabels, setShowLabels] = useState(externalShowLabels);
+  const [graphStyle, setGraphStyle] = useState<'bloodhound'>(externalGraphStyle);
   const [connectionCount, setConnectionCount] = useState(0);
   // Supprimé: savedEdges local non persistant
 
-  // Déterminer le type d'appareil basé sur l'OS et les services
+  // Déterminer le type d'appareil basé sur l'OS et les services - style killchain avec emojis
   const getDeviceType = (host: Host): DeviceType => {
     const os = host.os?.toLowerCase() || '';
     const hostname = host.hostname?.toLowerCase() || '';
@@ -69,9 +72,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Router, 
         color: '#8b5cf6', 
         shape: 'icon', 
-        size: 40,
-        iconCode: '\uf1eb', // WiFi icon (solid)  
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '📡', // Router emoji
+        iconFont: 'Arial'
       };
     }
     if (os.includes('firewall') || hostname.includes('fw') || hostname.includes('pfsense')) {
@@ -80,9 +83,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Shield, 
         color: '#f59e0b', 
         shape: 'icon', 
-        size: 38,
-        iconCode: '\uf132', // Shield icon
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '🛡️', // Shield emoji
+        iconFont: 'Arial'
       };
     }
     if (os.includes('mobile') || os.includes('android') || os.includes('ios')) {
@@ -91,9 +94,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Smartphone, 
         color: '#10b981', 
         shape: 'icon', 
-        size: 28,
-        iconCode: '\uf10b', // Mobile icon
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '📱', // Mobile emoji
+        iconFont: 'Arial'
       };
     }
     if (os.includes('database') || hostname.includes('db') || hostname.includes('sql')) {
@@ -102,9 +105,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Database, 
         color: '#3b82f6', 
         shape: 'icon', 
-        size: 35,
-        iconCode: '\uf1c0', // Database icon
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '🗄️', // Database emoji
+        iconFont: 'Arial'
       };
     }
     if (os.includes('windows') && (hostname.includes('ws') || hostname.includes('pc-'))) {
@@ -113,9 +116,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Monitor, 
         color: '#06b6d4', 
         shape: 'icon', 
-        size: 32,
-        iconCode: '\uf108', // Desktop icon
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '💻', // Desktop emoji
+        iconFont: 'Arial'
       };
     }
     if (os.includes('server') || hostname.includes('srv') || hostname.includes('dc-')) {
@@ -124,9 +127,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Server, 
         color: '#1e40af', 
         shape: 'icon', 
-        size: 38,
-        iconCode: '\uf233', // Server icon
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '🖥️', // Server emoji
+        iconFont: 'Arial'
       };
     }
     if (os.includes('linux') || os.includes('ubuntu') || os.includes('centos')) {
@@ -135,9 +138,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         icon: Server, 
         color: '#059669', 
         shape: 'icon', 
-        size: 35,
-        iconCode: '\uf120', // Terminal icon
-        iconFont: 'Font Awesome 6 Free'
+        size: 16,
+        iconCode: '🐧', // Linux emoji
+        iconFont: 'Arial'
       };
     }
     
@@ -146,9 +149,9 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       icon: Globe, 
       color: '#64748b', 
       shape: 'icon', 
-      size: 28,
-      iconCode: '\uf0ac', // Globe icon
-      iconFont: 'FontAwesome'
+      size: 16,
+      iconCode: '🌐', // Globe emoji
+      iconFont: 'Arial'
     };
   };
 
@@ -236,31 +239,44 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     onNodeSelectRef.current = onNodeSelect;
   }, [onNodeSelect]);
 
+  // Synchroniser les props externes
+  useEffect(() => {
+    setShowLabels(externalShowLabels);
+  }, [externalShowLabels]);
+
+  useEffect(() => {
+    setGraphStyle(externalGraphStyle);
+  }, [externalGraphStyle]);
+
   useEffect(() => {
     if (!networkRef.current) return;
 
-    // Préparer les nœuds avec couleurs et icônes
+    // Préparer les nœuds avec labels natifs de vis.js
     const nodes = new DataSet(
       hosts.map((host, index) => {
         const savedNode = networkNodes[host.id];
         const deviceType = getDeviceType(host);
-        const nodeColor = getNodeColor(host, deviceType);
         const securityStatus = getSecurityStatus(host);
         
         // Bordure colorée selon le statut de sécurité
         const borderConfig = {
-          'critical': { color: '#dc2626', width: 5, shadowColor: 'rgba(220, 38, 38, 0.4)' },
-          'high-risk': { color: '#ea580c', width: 4, shadowColor: 'rgba(234, 88, 12, 0.3)' },
-          'medium-risk': { color: '#d97706', width: 3, shadowColor: 'rgba(217, 119, 6, 0.3)' },
-          'low-risk': { color: '#eab308', width: 2, shadowColor: 'rgba(234, 179, 8, 0.2)' },
-          'secure': { color: '#16a34a', width: 2, shadowColor: 'rgba(22, 163, 74, 0.2)' }
+          'critical': { color: '#dc2626', width: 3, shadowColor: 'rgba(220, 38, 38, 0.4)' },
+          'high-risk': { color: '#ea580c', width: 2, shadowColor: 'rgba(234, 88, 12, 0.3)' },
+          'medium-risk': { color: '#d97706', width: 2, shadowColor: 'rgba(217, 119, 6, 0.3)' },
+          'low-risk': { color: '#eab308', width: 1, shadowColor: 'rgba(234, 179, 8, 0.2)' },
+          'secure': { color: '#16a34a', width: 1, shadowColor: 'rgba(22, 163, 74, 0.2)' }
         };
         
         const borderStyle = borderConfig[securityStatus];
+        const category = categories.find(c => c.id === host.category);
+        const zoneColor = category?.color || '#64748b';
+        const iconChar = deviceType.iconCode || '🌐';
+        const isSelected = selectedHost?.id === host.id;
         
+        // Nœud avec style killchain - petit cercle fixe avec emoji au centre et texte en dessous
         const nodeConfig: any = {
           id: host.id,
-          label: showLabels ? `${host.hostname || host.ip}\n${host.ip}` : '',
+          label: showLabels ? (host.hostname || host.ip) : '', // Label en dessous du cercle
           title: `
             <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; padding: 12px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 8px; color: #f8fafc; box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
               <div style="font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 8px;">${host.hostname || 'Hôte sans nom'}</div>
@@ -274,138 +290,41 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               <div style="font-size: 11px; color: #94a3b8;">🛠️ Exploits: ${host.exploitationSteps?.length || 0}</div>
             </div>
           `,
-          shape: deviceType.shape,
-          size: deviceType.size,
-          borderWidth: borderStyle.width,
-          font: {
-            color: '#f8fafc',
-            size: 11,
-            face: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-            strokeWidth: 2,
-            strokeColor: '#0f172a'
+          shape: 'circle',
+          size: 16, // Taille fixe pour tous les nœuds
+          color: {
+            background: zoneColor,
+            border: isSelected ? '#ffffff' : '#000000',
+            highlight: {
+              background: zoneColor,
+              border: '#ffffff'
+            },
+            hover: {
+              background: zoneColor,
+              border: '#ffffff'
+            }
           },
+          borderWidth: isSelected ? 3 : 2,
           shadow: {
             enabled: true,
-            color: borderStyle.shadowColor,
-            size: 12,
-            x: 3,
-            y: 3
+            color: isSelected ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
+            size: isSelected ? 8 : 4,
+            x: 2,
+            y: 2
           },
-          widthConstraint: { minimum: 80, maximum: 220 },
-          margin: { top: 8, right: 10, bottom: 8, left: 10 },
+          font: {
+            color: '#ffffff',
+            size: 10,
+            face: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+            strokeWidth: 2,
+            strokeColor: '#000000',
+            align: 'center'
+          },
+          margin: { top: 8, right: 2, bottom: 2, left: 2 }, // Plus d'espace en haut pour le label
           x: savedNode?.x || (index % 6) * 200 + 100,
           y: savedNode?.y || Math.floor(index / 6) * 150 + 100,
           physics: savedNode ? false : true
         };
-
-        // Configuration selon le style sélectionné
-        if ((graphStyle === 'icons' || graphStyle === 'glow') && deviceType.shape === 'icon' && deviceType.iconCode && deviceType.iconFont) {
-          // Style 1 (icons) et Style 2 (glow) : Icônes FontAwesome
-          nodeConfig.shape = 'icon';
-          nodeConfig.icon = {
-            face: deviceType.iconFont,
-            code: deviceType.iconCode,
-            size: deviceType.size,
-            color: deviceType.color // Couleur d'origine de l'icône
-          };
-          
-          nodeConfig.color = {
-            border: 'transparent',
-            highlight: { border: '#f1f5f9' },
-            hover: { border: '#e2e8f0' }
-          };
-          
-          if (graphStyle === 'glow') {
-            // Style 2 : Avec effet glow
-            nodeConfig.shadow = {
-              enabled: true,
-              color: nodeColor,
-              size: 25,
-              x: 0,
-              y: 0
-            };
-          } else {
-            // Style 1 : Pas de glow
-            nodeConfig.shadow = {
-              enabled: false
-            };
-          }
-          
-          nodeConfig.shapeProperties = {
-            borderDashes: false,
-            borderRadius: 0,
-            interpolation: false,
-            useImageSize: false,
-            useBorderWithImage: false
-          };
-          
-          if (showLabels) {
-            nodeConfig.label = `${host.hostname || host.ip}\n${host.ip}`;
-            nodeConfig.font = {
-              color: '#f8fafc',
-              size: 11,
-              face: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-              strokeWidth: 2,
-              strokeColor: '#0f172a'
-            };
-          }
-        } else if (graphStyle === 'circles') {
-          // Style 3 : Cercles colorés (pas d'icônes)
-          nodeConfig.shape = 'circle';
-          nodeConfig.size = deviceType.size;
-          nodeConfig.color = {
-            background: nodeColor,
-            border: borderStyle.color,
-            highlight: {
-              background: nodeColor,
-              border: '#f1f5f9'
-            },
-            hover: {
-              background: nodeColor,
-              border: '#e2e8f0'
-            }
-          };
-          nodeConfig.borderWidth = borderStyle.width;
-          nodeConfig.shadow = {
-            enabled: true,
-            color: borderStyle.shadowColor,
-            size: 12,
-            x: 3,
-            y: 3
-          };
-          nodeConfig.shapeProperties = {
-            borderRadius: 50
-          };
-        } else {
-          // Configuration classique pour les formes géométriques
-          // Utiliser les formes originales si les icônes sont désactivées
-          const originalShapes = {
-            'router': 'diamond',
-            'firewall': 'triangle', 
-            'mobile': 'circle',
-            'database': 'box',
-            'workstation': 'circle',
-            'server': 'box',
-            'unknown': 'dot'
-          };
-          
-          nodeConfig.shape = useIcons ? deviceType.shape : originalShapes[deviceType.type];
-          nodeConfig.color = {
-            background: nodeColor,
-            border: borderStyle.color,
-            highlight: {
-              background: nodeColor,
-              border: '#f1f5f9'
-            },
-            hover: {
-              background: nodeColor,
-              border: '#e2e8f0'
-            }
-          };
-          nodeConfig.shapeProperties = {
-            borderRadius: 12,
-          };
-        }
 
         return nodeConfig;
       })
@@ -413,6 +332,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
     // Construire les arêtes à partir des connexions persistées
     const edgeList: any[] = [];
+    
     hosts.forEach((host) => {
       (host.outgoingConnections || []).forEach((conn: any, idx: number) => {
         if (!conn || !conn.toHostId) return;
@@ -469,19 +389,41 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     });
     const edges = new DataSet(edgeList);
 
-    // Configuration du réseau
+    // Configuration du réseau pour le style Killchain avec petits ronds et labels en dessous
     const options = {
       nodes: {
-        font: { size: 12, face: 'Inter, sans-serif', strokeWidth: 1, strokeColor: '#000000' },
-        shadow: { enabled: true, color: 'rgba(0,0,0,0.2)', size: 10, x: 3, y: 3 },
+        font: { 
+          size: 10, 
+          face: 'Inter, sans-serif', 
+          strokeWidth: 2, 
+          strokeColor: '#000000',
+          color: '#ffffff',
+          align: 'center'
+        },
+        shadow: { 
+          enabled: true, 
+          color: 'rgba(0,0,0,0.3)', 
+          size: 4, 
+          x: 2, 
+          y: 2 
+        },
         borderWidth: 2,
-        borderWidthSelected: 4,
-        scaling: { min: 20, max: 60, label: { enabled: true, min: 10, max: 16 }},
-        shapeProperties: { borderRadius: 12 },
+        borderWidthSelected: 3,
+        scaling: { 
+          min: 16, 
+          max: 16, 
+          label: { 
+            enabled: true, 
+            min: 8, 
+            max: 12,
+            maxVisible: 12
+          }
+        },
         chosen: {
           node(values: any) {
-            values.borderWidth = 4;
+            values.borderWidth = 3;
             values.shadow = true;
+            values.size = values.size * 1.1;
           }
         }
       },
@@ -539,6 +481,39 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
     // Créer le réseau
     networkInstance.current = new Network(networkRef.current, { nodes, edges }, options);
+    
+    // Ajouter les emojis dans les cercles après création du réseau
+    setTimeout(() => {
+      if (networkInstance.current && networkRef.current) {
+        const canvas = networkRef.current.querySelector('canvas');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Fonction pour dessiner les emojis
+            const drawNodeIcons = () => {
+              hosts.forEach((host, index) => {
+                const savedNode = networkNodes[host.id];
+                const deviceType = getDeviceType(host);
+                const iconChar = deviceType.iconCode || '🌐';
+                
+                const x = savedNode?.x || (index % 6) * 200 + 100;
+                const y = savedNode?.y || Math.floor(index / 6) * 150 + 100;
+                
+                // Dessiner l'emoji au centre du cercle
+                ctx.font = '14px Arial'; // Taille appropriée pour les emojis
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(iconChar, x, y);
+              });
+            };
+            
+            // Redessiner les icônes quand le réseau se redessine
+            networkInstance.current.on('redraw', drawNodeIcons);
+            drawNodeIcons();
+          }
+        }
+      }
+    }, 100);
     
     // Éviter toute stabilisation automatique qui pourrait changer la vue
     // La physique est déjà configurée pour se stabiliser sans fit automatique
@@ -720,7 +695,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       const currentViewPosition = networkInstance.current.getViewPosition();
       const currentScale = networkInstance.current.getScale();
       
-      // Réinitialiser les positions des nœuds
+      // Réinitialiser les positions des nœuds - APPROCHE SIMPLIFIÉE
       const newPositions: { [key: string]: { x: number; y: number } } = {};
       hosts.forEach((host, index) => {
         const newPos = { 
@@ -765,229 +740,107 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* CSS pour améliorer les effets glow des icônes */}
+      {/* CSS pour le style Killchain - petits ronds avec icônes centrées */}
       <style>{`
+        /* Style Killchain : petits cercles avec icônes centrées et labels en dessous */
         .vis-network .vis-network-node {
-          filter: drop-shadow(0 0 10px currentColor);
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         }
         .vis-network .vis-network-node.vis-selected {
-          filter: drop-shadow(0 0 20px currentColor) drop-shadow(0 0 30px currentColor);
+          filter: drop-shadow(0 4px 8px rgba(255,255,255,0.4));
+          transform: scale(1.1);
         }
         .vis-network .vis-network-node:hover {
-          filter: drop-shadow(0 0 15px currentColor) drop-shadow(0 0 25px currentColor);
+          filter: drop-shadow(0 3px 6px rgba(255,255,255,0.3));
+          transform: scale(1.05);
+        }
+        
+        /* Forcer tous les nœuds à être des cercles parfaits et petits comme dans killchain */
+        .vis-network .vis-network-node circle {
+          r: 8px !important;
+        }
+        .vis-network .vis-network-node ellipse {
+          rx: 8px !important;
+          ry: 8px !important;
+        }
+        .vis-network .vis-network-node rect {
+          rx: 8px !important;
+          ry: 8px !important;
+          width: 16px !important;
+          height: 16px !important;
+        }
+        
+        /* Forcer la taille des nœuds à être fixe */
+        .vis-network .vis-network-node {
+          width: 16px !important;
+          height: 16px !important;
+        }
+        
+        /* Style des labels de texte (en dessous des cercles) */
+        .vis-network .vis-network-label {
+          font-size: 10px !important;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+          font-weight: 500 !important;
+          color: #ffffff !important;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+          text-align: center !important;
+          line-height: 1.2 !important;
+          margin-top: 4px !important;
+        }
+        
+        /* Style des arêtes */
+        .vis-network .vis-network-edge {
+          stroke-width: 2px !important;
+        }
+        .vis-network .vis-network-edge:hover {
+          stroke-width: 3px !important;
+        }
+        
+        /* Labels des arêtes */
+        .vis-network .vis-network-edge .vis-network-label {
+          font-size: 8px !important;
+          background: rgba(15, 23, 42, 0.9) !important;
+          color: #cbd5e1 !important;
+          padding: 2px 4px !important;
+          border-radius: 3px !important;
+        }
+        
+        /* Améliorer l'apparence des nœuds sélectionnés */
+        .vis-network .vis-network-node.vis-selected circle {
+          stroke: #ffffff !important;
+          stroke-width: 3px !important;
+        }
+        
+        /* Style pour les nœuds au survol */
+        .vis-network .vis-network-node:hover circle {
+          stroke: #ffffff !important;
+          stroke-width: 2px !important;
+        }
+        
+        /* Style pour les emojis dans les cercles */
+        .vis-network .vis-network-node text {
+          font-family: 'Arial', sans-serif !important;
+          font-size: 14px !important;
+          text-anchor: middle !important;
+          dominant-baseline: central !important;
+        }
+        
+        /* Améliorer la visibilité des emojis */
+        .vis-network .vis-network-node text {
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+        }
+        
+        /* S'assurer que les nœuds ont une taille fixe */
+        .vis-network .vis-network-node {
+          min-width: 16px !important;
+          min-height: 16px !important;
+          max-width: 16px !important;
+          max-height: 16px !important;
         }
       `}</style>
-      {/* Panneau de contrôles */}
-      <div className="absolute top-4 left-4 z-10 space-y-2">
-        <div className="bg-slate-800/95 backdrop-blur-md rounded-xl p-4 border border-slate-600/50 shadow-2xl ring-1 ring-white/5">
-          <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-blue-400" />
-            Contrôles Graph
-          </h3>
-          <div className="space-y-3">
-            {/* Centrage */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fitToScreen}
-              className="w-full bg-slate-700/80 border-slate-500/50 text-slate-100 hover:bg-slate-600/80 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm"
-              title="Centrer tous les hosts sur l'écran"
-            >
-              <Target className="w-4 h-4 mr-2" />
-              Centrer les hosts
-            </Button>
-            
-            {/* Anonymisation */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowLabels(!showLabels)}
-              className={`w-full border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm ${
-                showLabels ? 'bg-blue-600/80 hover:bg-blue-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
-              }`}
-              title="Anonymiser/Afficher les labels"
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              {showLabels ? 'Anonymiser' : 'Afficher labels'}
-            </Button>
-            
-            {/* Styles */}
-            <div>
-              <div className="text-xs text-slate-300 mb-2 font-medium">Style visuel:</div>
-              <div className="grid grid-cols-3 gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setGraphStyle('icons')}
-                  className={`text-xs border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm ${
-                    graphStyle === 'icons' ? 'bg-purple-600/80 hover:bg-purple-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
-                  }`}
-                  title="Style 1: Icônes simples"
-                >
-                  Style 1
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setGraphStyle('glow')}
-                  className={`text-xs border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm ${
-                    graphStyle === 'glow' ? 'bg-emerald-600/80 hover:bg-emerald-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
-                  }`}
-                  title="Style 2: Icônes avec glow"
-                >
-                  Style 2
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setGraphStyle('circles')}
-                  className={`text-xs border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm ${
-                    graphStyle === 'circles' ? 'bg-cyan-600/80 hover:bg-cyan-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
-                  }`}
-                  title="Style 3: Cercles colorés"
-                >
-                  Style 3
-                </Button>
-              </div>
-            </div>
-          </div>
-          {connectionCount > 0 && (
-            <div className="mt-3 pt-2 border-t border-slate-700/50">
-              <div className="text-xs text-blue-400 flex items-center gap-2">
-                <Wifi className="w-3 h-3" />
-                <span className="font-medium">{connectionCount} connexion{connectionCount > 1 ? 's' : ''}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Légende */}
-      {showLegend && (
-        <div className="absolute top-4 z-10" style={{ right: uiRightOffset ?? 16 }}>
-          <div className="bg-slate-800/95 backdrop-blur-md rounded-xl p-4 border border-slate-600/50 shadow-2xl ring-1 ring-white/5 max-w-xs">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-emerald-400" />
-                Légende
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowLegend(false)}
-                className="h-6 w-6 p-0 text-slate-400 hover:text-slate-200"
-              >
-                ×
-              </Button>
-            </div>
-                
-            <div className="space-y-3 text-xs">
-              {/* Mode d'affichage */}
-              <div>
-                <h4 className="text-slate-300 font-medium mb-2">Style actuel: 
-                  {graphStyle === 'icons' && ' Icônes simples'}
-                  {graphStyle === 'glow' && ' Icônes avec glow'}
-                  {graphStyle === 'circles' && ' Cercles colorés'}
-                </h4>
-                <div className="text-slate-400">
-                  {graphStyle === 'icons' && '🔸 Icônes FontAwesome sans effet'}
-                  {graphStyle === 'glow' && '✨ Icônes avec halo lumineux coloré'}
-                  {graphStyle === 'circles' && '⭕ Cercles colorés selon catégorie'}
-                </div>
-              </div>
 
-              <div>
-                <h4 className="text-slate-300 font-medium mb-2">Types d'appareils</h4>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 bg-blue-500 border border-blue-400 ${graphStyle === 'circles' ? 'rounded-full' : 'rounded'}`}></div>
-                    <Server className="w-3 h-3 text-slate-400" />
-                    <span className="text-slate-300">Serveurs</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 bg-purple-500 border border-purple-400 ${graphStyle === 'circles' ? 'rounded-full' : 'rounded'}`}></div>
-                    <Router className="w-3 h-3 text-slate-400" />
-                    <span className="text-slate-300">Routeurs</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 bg-emerald-500 border border-emerald-400 ${graphStyle === 'circles' ? 'rounded-full' : 'rounded'}`}></div>
-                    <Monitor className="w-3 h-3 text-slate-400" />
-                    <span className="text-slate-300">Workstations</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 bg-orange-500 border border-orange-400 ${graphStyle === 'circles' ? 'rounded-full' : 'rounded'}`}></div>
-                    <Shield className="w-3 h-3 text-slate-400" />
-                    <span className="text-slate-300">Firewalls</span>
-                  </div>
-                  </div>
-                </div>
 
-                <div>
-                <h4 className="text-slate-300 font-medium mb-2">Statut sécurité</h4>
-                  <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-red-500 rounded bg-red-500/20"></div>
-                    <span className="text-slate-300">Critique</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-orange-500 rounded bg-orange-500/20"></div>
-                    <span className="text-slate-300">Haut risque</span>
-                  </div>
-                    <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-amber-500 rounded bg-amber-500/20"></div>
-                    <span className="text-slate-300">Risque moyen</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 border-2 border-green-500 rounded bg-green-500/20"></div>
-                    <span className="text-slate-300">Sécurisé</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-                  </div>
-                </div>
-      )}
-
-      {/* Bouton pour réafficher la légende */}
-      {!showLegend && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowLegend(true)}
-          className="absolute top-4 z-10 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
-          style={{ right: uiRightOffset ?? 16 }}
-        >
-          <Settings className="w-4 h-4" />
-        </Button>
-      )}
-
-      {/* Instructions */}
-      <div className="absolute bottom-4 left-4 z-10">
-        <div className="bg-slate-800/95 backdrop-blur-md rounded-xl p-4 border border-slate-600/50 shadow-2xl ring-1 ring-white/5 max-w-sm">
-          <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
-            <Info className="w-4 h-4 text-blue-400" />
-            Instructions
-          </h3>
-          <div className="space-y-2 text-xs text-slate-300">
-            <div className="flex items-start gap-2">
-              <span className="text-blue-400">•</span>
-              <span><strong className="text-slate-200">Cliquer</strong> sur un nœud pour ouvrir la sidebar</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-blue-400">•</span>
-              <span><strong className="text-slate-200">Glisser</strong> pour repositionner les nœuds</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-blue-400">•</span>
-              <span><strong className="text-slate-200">Molette</strong> pour zoomer/dézoomer</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-blue-400">•</span>
-              <span><strong className="text-slate-200">Connexions</strong> via la sidebar</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Container du réseau */}
       <div 

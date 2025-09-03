@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Server, 
@@ -15,7 +15,13 @@ import {
   Shield,
   Maximize2,
   Minimize2,
-  X
+  X,
+  Eye,
+  RefreshCw,
+  Layers,
+  ArrowRight,
+  Zap,
+  Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +30,8 @@ import { SidebarPanel } from './SidebarPanel';
 import { CategoryManager } from './CategoryManager';
 import { ImportExportPanel } from './ImportExportPanel';
 import NetworkVisualization from './NetworkVisualization';
+import ClassicVisualization from './ClassicVisualization';
+import KillchainVisualization from './KillchainVisualization';
 import { StatsModal } from './StatsModal';
 import { useHostStore } from '@/stores/hostStore';
 import { Host } from '@/types';
@@ -47,6 +55,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'network'>('list');
   const [networkFullscreen, setNetworkFullscreen] = useState(false);
+  const [networkStyle, setNetworkStyle] = useState<'classic' | 'killchain'>('classic');
+  const [showNetworkLabels, setShowNetworkLabels] = useState(true);
+  const [showNetworkLegend, setShowNetworkLegend] = useState(true);
+  const [categoriesSidebarCollapsed, setCategoriesSidebarCollapsed] = useState(false);
+
   const [about, setAbout] = useState(false);
   const [bulkParserOpen, setBulkParserOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
@@ -60,26 +73,28 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   // Convert hosts object to array
   const hostsArray = Object.values(hosts);
 
-  // Filter hosts based on search and category
-  const filteredHosts = hostsArray.filter((host: Host) => {
-    const matchesSearch = host.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         host.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         host.os?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'all' || host.category === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
+  // Filter hosts based on search and category - mémorisé pour éviter les re-renders inutiles
+  const filteredHosts = useMemo(() => {
+    return hostsArray.filter((host: Host) => {
+      const matchesSearch = host.ip.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           host.hostname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           host.os?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = selectedCategory === 'all' || host.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [hostsArray, searchTerm, selectedCategory]);
 
-  // Calculate statistics
-  const stats = {
+  // Calculate statistics - mémorisé pour éviter les recalculs inutiles
+  const stats = useMemo(() => ({
     total: hostsArray.length,
     active: hostsArray.filter((h: Host) => h.status === 'active').length,
     compromised: hostsArray.filter((h: Host) => h.status === 'compromised').length,
     critical: hostsArray.filter((h: Host) => h.priority === 'critical').length,
     credentials: hostsArray.reduce((sum: number, h: Host) => sum + h.usernames.length + h.passwords.length + h.hashes.length, 0),
     vulnerabilities: hostsArray.reduce((sum: number, h: Host) => sum + (h.exploitationSteps?.length || 0), 0),
-  };
+  }), [hostsArray]);
 
   const handleHostSelect = (host: Host) => {
     setSelectedHost(host);
@@ -259,8 +274,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   return (
     <div className="app-layout">
       {/* Header */}
-      <div className="main-header p-6">
-        <div className="flex-between mb-6">
+      <div className="main-header p-4">
+        <div className="flex-between mb-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="AuditMapper" className="w-8 h-8 rounded-lg opacity-80" />
@@ -343,18 +358,18 @@ export const HostManager: React.FC<HostManagerProps> = () => {
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="stats-grid mb-6">
+        {/* Statistics Cards - Compact for laptops */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
           <Card 
             className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
             onClick={() => { setStatsModalType('total'); setStatsModalOpen(true); }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Server className="w-8 h-8 text-blue-400" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <Server className="w-4 h-4 text-blue-400" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-100">{stats.total}</p>
-                  <p className="text-sm text-slate-400">Total</p>
+                  <p className="text-lg font-bold text-slate-100">{stats.total}</p>
+                  <p className="text-xs text-slate-400">Total</p>
                 </div>
               </div>
             </CardContent>
@@ -363,12 +378,12 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
             onClick={() => { setStatsModalType('active'); setStatsModalOpen(true); }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <CheckCircle className="w-8 h-8 text-green-400" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-100">{stats.active}</p>
-                  <p className="text-sm text-slate-400">Actifs</p>
+                  <p className="text-lg font-bold text-slate-100">{stats.active}</p>
+                  <p className="text-xs text-slate-400">Actifs</p>
                 </div>
               </div>
             </CardContent>
@@ -377,12 +392,12 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
             onClick={() => { setStatsModalType('compromised'); setStatsModalOpen(true); }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-8 h-8 text-orange-400" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-400" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-100">{stats.compromised}</p>
-                  <p className="text-sm text-slate-400">Compromis</p>
+                  <p className="text-lg font-bold text-slate-100">{stats.compromised}</p>
+                  <p className="text-xs text-slate-400">Compromis</p>
                 </div>
               </div>
             </CardContent>
@@ -391,12 +406,12 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
             onClick={() => { setStatsModalType('critical'); setStatsModalOpen(true); }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Target className="w-8 h-8 text-red-400" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-red-400" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-100">{stats.critical}</p>
-                  <p className="text-sm text-slate-400">Critiques</p>
+                  <p className="text-lg font-bold text-slate-100">{stats.critical}</p>
+                  <p className="text-xs text-slate-400">Critiques</p>
                 </div>
               </div>
             </CardContent>
@@ -405,12 +420,12 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
             onClick={() => { setStatsModalType('credentials'); setStatsModalOpen(true); }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-purple-400" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-purple-400" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-100">{stats.credentials}</p>
-                  <p className="text-sm text-slate-400">Credentials</p>
+                  <p className="text-lg font-bold text-slate-100">{stats.credentials}</p>
+                  <p className="text-xs text-slate-400">Credentials</p>
                 </div>
               </div>
             </CardContent>
@@ -419,12 +434,12 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
             onClick={() => { setStatsModalType('exploitation'); setStatsModalOpen(true); }}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Target className="w-8 h-8 text-orange-400" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-orange-400" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-100">{stats.vulnerabilities}</p>
-                  <p className="text-sm text-slate-400">Étapes d'exploitation</p>
+                  <p className="text-lg font-bold text-slate-100">{stats.vulnerabilities}</p>
+                  <p className="text-xs text-slate-400">Étapes d'exploitation</p>
                 </div>
               </div>
             </CardContent>
@@ -504,89 +519,122 @@ export const HostManager: React.FC<HostManagerProps> = () => {
       {/* Main Content */}
       <div className="main-content">
         {/* Left Sidebar */}
-        <div className="sidebar-left p-4">
-          <h3 className="text-lg font-semibold text-slate-100 mb-4">Catégories</h3>
+        <div className={`sidebar-left transition-all duration-300 ${categoriesSidebarCollapsed ? 'w-16' : 'w-64'} p-4`}>
+          <div className="flex items-center justify-between mb-4">
+            {!categoriesSidebarCollapsed && (
+              <h3 className="text-lg font-semibold text-slate-100">Catégories</h3>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCategoriesSidebarCollapsed(!categoriesSidebarCollapsed)}
+              className="text-slate-400 hover:text-slate-200 p-1"
+              title={categoriesSidebarCollapsed ? "Développer" : "Réduire"}
+            >
+              {categoriesSidebarCollapsed ? (
+                <ArrowRight className="w-4 h-4" />
+              ) : (
+                <ArrowRight className="w-4 h-4 rotate-180" />
+              )}
+            </Button>
+          </div>
           <Button
             variant="outline"
             onClick={() => setShowCategoryManager(true)}
-            className="w-full mb-4 bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+            className={`mb-4 bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 ${categoriesSidebarCollapsed ? 'w-full p-2' : 'w-full'}`}
+            title={categoriesSidebarCollapsed ? "Nouvelle Catégorie" : undefined}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle Catégorie
+            <Plus className={`w-4 h-4 ${categoriesSidebarCollapsed ? '' : 'mr-2'}`} />
+            {!categoriesSidebarCollapsed && "Nouvelle Catégorie"}
           </Button>
           
           <div className="space-y-2">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`w-full text-left p-3 rounded-lg transition-colors ${
+              className={`w-full text-left rounded-lg transition-colors ${
                 selectedCategory === 'all'
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-300 hover:bg-slate-700'
-              }`}
+              } ${categoriesSidebarCollapsed ? 'p-2 flex justify-center' : 'p-3'}`}
+              title={categoriesSidebarCollapsed ? `Tous les Hosts (${hostsArray.length})` : undefined}
             >
-              <div className="flex items-center justify-between">
-                <span>Tous les Hosts</span>
-                <span className="text-sm opacity-70">({hostsArray.length})</span>
-              </div>
+              {categoriesSidebarCollapsed ? (
+                <Server className="w-4 h-4" />
+              ) : (
+                <div className="flex items-center justify-between">
+                  <span>Tous les Hosts</span>
+                  <span className="text-sm opacity-70">({hostsArray.length})</span>
+                </div>
+              )}
             </button>
             
             {categories.map((category) => (
               <div key={category.id} className="space-y-1">
                 <button
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  className={`w-full text-left rounded-lg transition-colors ${
                     selectedCategory === category.id
                       ? 'bg-blue-600 text-white'
                       : 'text-slate-300 hover:bg-slate-700'
-                  }`}
+                  } ${categoriesSidebarCollapsed ? 'p-2 flex justify-center' : 'p-3'}`}
+                  title={categoriesSidebarCollapsed ? `${category.name} (${hostsArray.filter((h: Host) => h.category === category.id).length})` : undefined}
                 >
-                  <div className="flex items-center justify-between">
-                    <span>{category.name}</span>
-                    <span className="text-sm opacity-70">
-                      ({hostsArray.filter((h: Host) => h.category === category.id).length})
-                    </span>
-                  </div>
+                  {categoriesSidebarCollapsed ? (
+                    <div 
+                      className="w-4 h-4 rounded-full border-2" 
+                      style={{ backgroundColor: category.color, borderColor: category.color }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span>{category.name}</span>
+                      <span className="text-sm opacity-70">
+                        ({hostsArray.filter((h: Host) => h.category === category.id).length})
+                      </span>
+                    </div>
+                  )}
                 </button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const newHost = {
-                      ip: '0.0.0.0',
-                      hostname: `Nouveau Host ${category.name}`,
-                      os: 'Unknown',
-                      status: 'active' as const,
-                      priority: 'medium' as const,
-                      compromiseLevel: 'none' as const,
-                      category: category.id,
-                      usernames: [],
-                      passwords: [],
-                      hashes: [],
-                      exploitationSteps: [],
-                      screenshots: [],
-                      vulnerabilities: [],
-                      tags: [],
-                      services: [],
-                      ports: [],
-                      outgoingConnections: [],
-                      incomingConnections: [],
-                      notes: '',
-                    };
-                    addHost(newHost);
-                    // Trouver le host créé et l'ouvrir
-                    const createdHost = Object.values(hosts).find(h => 
-                      h.ip === newHost.ip && h.hostname === newHost.hostname
-                    );
-                    if (createdHost) {
-                      setSelectedHost(createdHost);
-                      setShowSidebar(true);
-                    }
-                  }}
-                  className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-xs"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Ajouter un hôte
-                </Button>
+                {!categoriesSidebarCollapsed && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newHost = {
+                        ip: '0.0.0.0',
+                        hostname: `Nouveau Host ${category.name}`,
+                        os: 'Unknown',
+                        status: 'active' as const,
+                        priority: 'medium' as const,
+                        compromiseLevel: 'none' as const,
+                        category: category.id,
+                        usernames: [],
+                        passwords: [],
+                        hashes: [],
+                        exploitationSteps: [],
+                        screenshots: [],
+                        vulnerabilities: [],
+                        tags: [],
+                        services: [],
+                        ports: [],
+                        outgoingConnections: [],
+                        incomingConnections: [],
+                        notes: '',
+                      };
+                      addHost(newHost);
+                      // Trouver le host créé et l'ouvrir
+                      const createdHost = Object.values(hosts).find(h => 
+                        h.ip === newHost.ip && h.hostname === newHost.hostname
+                      );
+                      if (createdHost) {
+                        setSelectedHost(createdHost);
+                        setShowSidebar(true);
+                      }
+                    }}
+                    className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Ajouter un hôte
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -698,14 +746,296 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             // Network Visualization
             <div className={`content-main network-container transition-all duration-300 ${
               showSidebar && sidebarExpanded ? 'mr-[50%]' : showSidebar ? 'mr-[28rem]' : ''
-            }`}>
-              <NetworkVisualization
-                hosts={filteredHosts}
-                categories={categories}
-                onNodeSelect={handleHostSelect}
-                selectedHost={selectedHost}
-                uiRightOffset={16}
-              />
+            }`} style={{ height: 'calc(100vh - 120px)', minHeight: '800px' }}>
+              {/* Contrôles unifiés */}
+              <div className="absolute top-4 left-4 z-30 space-y-2">
+                {/* Style Selector */}
+                <div className="bg-slate-800/95 backdrop-blur-md rounded-xl p-3 border border-slate-600/50 shadow-2xl ring-1 ring-white/5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-300 font-medium">Style:</span>
+                    <div className="flex gap-1">
+
+                      <button
+                        onClick={() => setNetworkStyle('classic')}
+                        className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border hover:text-accent-foreground h-9 rounded-md px-3 ${
+                          networkStyle === 'classic' 
+                            ? 'bg-purple-600/80 border-purple-500 text-white hover:bg-purple-500/80' 
+                            : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                        }`}
+                        title="Vue classique avec zones réseau"
+                      >
+                        <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        </svg>
+                        Classique
+                      </button>
+                      <button
+                        onClick={() => setNetworkStyle('killchain')}
+                        className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border hover:text-accent-foreground h-9 rounded-md px-3 ${
+                          networkStyle === 'killchain' 
+                            ? 'bg-indigo-600/80 border-indigo-500 text-white hover:bg-indigo-500/80' 
+                            : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                        }`}
+                        title="Vue Killchain - Combinaison des deux styles"
+                      >
+                        <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          <path d="M8 4L16 4" stroke="currentColor" strokeWidth="2"/>
+                          <path d="M8 20L16 20" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                        Killchain
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Petits boutons discrets */}
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const event = new CustomEvent('network-fit-to-screen');
+                      window.dispatchEvent(event);
+                    }}
+                    className="bg-slate-700/80 border-slate-500/50 text-slate-100 hover:bg-slate-600/80 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2"
+                    title="Centrer la vue"
+                  >
+                    <Target className="w-3 h-3" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const event = new CustomEvent('network-reset-layout');
+                      window.dispatchEvent(event);
+                    }}
+                    className="bg-slate-700/80 border-slate-500/50 text-slate-100 hover:bg-slate-600/80 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2"
+                    title="Réinitialiser"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNetworkLabels(!showNetworkLabels)}
+                    className={`border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2 ${
+                      showNetworkLabels ? 'bg-blue-600/80 hover:bg-blue-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
+                    }`}
+                    title="Afficher/Masquer labels"
+                  >
+                    <Eye className="w-3 h-3" />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNetworkLegend(!showNetworkLegend)}
+                    className={`border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2 ${
+                      showNetworkLegend ? 'bg-emerald-600/80 hover:bg-emerald-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
+                    }`}
+                    title="Afficher/Masquer légende"
+                  >
+                    <Layers className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Légende */}
+              {showNetworkLegend && (
+                <div className="absolute bottom-4 z-10" style={{ right: 16 }}>
+                  <div className="bg-slate-800/95 backdrop-blur-md rounded-lg p-3 border border-slate-600/50 shadow-2xl ring-1 ring-white/5 max-w-xs">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-emerald-400" />
+                        {networkStyle === 'killchain' ? 'Légende Killchain' : 'Légende Classique'}
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowNetworkLegend(false)}
+                        className="h-6 w-6 p-0 text-slate-400 hover:text-slate-200"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2 text-xs">
+                      {networkStyle === 'killchain' ? (
+                        <>
+                          <div>
+                            <h4 className="text-slate-300 font-medium mb-1">Types de connexions</h4>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-0.5 bg-red-500"></div>
+                                <span className="text-slate-300 text-xs">Exploits</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-0.5 bg-purple-500"></div>
+                                <span className="text-slate-300 text-xs">Admin</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-0.5 bg-green-500"></div>
+                                <span className="text-slate-300 text-xs">Partages</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-0.5 bg-blue-500"></div>
+                                <span className="text-slate-300 text-xs">Web</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <h4 className="text-slate-300 font-medium mb-1">Types d'appareils</h4>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded"></div>
+                                <span className="text-slate-300 text-xs">Serveurs</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-purple-500 rounded"></div>
+                                <span className="text-slate-300 text-xs">Routeurs</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bouton pour réafficher la légende */}
+              {!showNetworkLegend && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNetworkLegend(true)}
+                  className="absolute bottom-4 z-10 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
+                  style={{ right: 16 }}
+                >
+                  <Layers className="w-4 h-4" />
+                </Button>
+              )}
+
+              {/* Instructions */}
+              <div className="absolute bottom-4 left-4 z-10" style={{ bottom: showNetworkLegend ? '120px' : '16px' }}>
+                <div className="bg-slate-800/95 backdrop-blur-md rounded-lg p-3 border border-slate-600/50 shadow-2xl ring-1 ring-white/5 max-w-sm">
+                  <h3 className="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
+                    {networkStyle === 'killchain' ? (
+                      <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+                      </svg>
+                    ) : networkStyle === 'bloodhound' ? (
+                      <svg className="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+                      </svg>
+                    ) : networkStyle === 'killchain' ? (
+                      <svg className="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        <path d="M8 4L16 4" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M8 20L16 20" stroke="currentColor" strokeWidth="2"/>
+                      </svg>
+                    ) : (
+                      <Info className="w-4 h-4 text-blue-400" />
+                    )}
+                    {networkStyle === 'classic' ? 'Mode Classique' : 'Mode Killchain'}
+                  </h3>
+                  <div className="space-y-1 text-xs text-slate-300">
+                    {networkStyle === 'classic' ? (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="text-purple-400">•</span>
+                          <span><strong className="text-slate-200">Zones réseau</strong> par catégorie</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-purple-400">•</span>
+                          <span><strong className="text-slate-200">Nœuds avec emojis</strong> selon le type</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-purple-400">•</span>
+                          <span><strong className="text-slate-200">Connexions colorées</strong> par type</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-purple-400">•</span>
+                          <span><strong className="text-slate-200">Zoom et pan</strong> fluides</span>
+                        </div>
+                      </>
+                    ) : networkStyle === 'killchain' ? (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="text-indigo-400">•</span>
+                          <span><strong className="text-slate-200">Phases KillChain</strong> avec style BloodHound</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-indigo-400">•</span>
+                          <span><strong className="text-slate-200">Nœuds avec emojis</strong> selon le type d'appareil</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-indigo-400">•</span>
+                          <span><strong className="text-slate-200">Connexions courbes</strong> colorées par type</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-indigo-400">•</span>
+                          <span><strong className="text-slate-200">Organisation par catégorie</strong> en phases</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-400">•</span>
+                          <span><strong className="text-slate-200">Cliquer</strong> sur un nœud pour ouvrir la sidebar</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-400">•</span>
+                          <span><strong className="text-slate-200">Glisser</strong> pour repositionner les nœuds</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-400">•</span>
+                          <span><strong className="text-slate-200">Molette</strong> pour zoomer/dézoomer</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-400">•</span>
+                          <span><strong className="text-slate-200">Connexions</strong> via la sidebar</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Network Visualization Component */}
+              {networkStyle === 'classic' ? (
+                <ClassicVisualization
+                  hosts={filteredHosts}
+                  categories={categories}
+                  onNodeSelect={handleHostSelect}
+                  selectedHost={selectedHost}
+                  showLabels={showNetworkLabels}
+                />
+              ) : (
+                <KillchainVisualization
+                  hosts={filteredHosts}
+                  categories={categories}
+                  onNodeSelect={handleHostSelect}
+                  selectedHost={selectedHost}
+                  showLabels={showNetworkLabels}
+                />
+              )}
               
               {/* Fullscreen Toggle */}
               <Button
@@ -826,13 +1156,41 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   Fermer
                 </Button>
               </div>
-              <NetworkVisualization
-                hosts={filteredHosts}
-                categories={categories}
-                onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
-                selectedHost={selectedHost}
-                uiRightOffset={120}
-              />
+              {networkStyle === 'classic' ? (
+                <NetworkVisualization
+                  hosts={filteredHosts}
+                  categories={categories}
+                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  selectedHost={selectedHost}
+                  uiRightOffset={120}
+                  showLabels={showNetworkLabels}
+                  graphStyle={classicGraphStyle}
+                />
+              ) : networkStyle === 'killchain' ? (
+                <KillchainVisualization
+                  hosts={filteredHosts}
+                  categories={categories}
+                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  selectedHost={selectedHost}
+                  showLabels={showNetworkLabels}
+                />
+              ) : networkStyle === 'classic' ? (
+                <ClassicVisualization
+                  hosts={filteredHosts}
+                  categories={categories}
+                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  selectedHost={selectedHost}
+                  showLabels={showNetworkLabels}
+                />
+              ) : (
+                <KillchainVisualization
+                  hosts={filteredHosts}
+                  categories={categories}
+                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  selectedHost={selectedHost}
+                  showLabels={showNetworkLabels}
+                />
+              )}
             </div>
           </motion.div>
         )}
