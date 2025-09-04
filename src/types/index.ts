@@ -28,6 +28,7 @@ export interface Host {
   priority: 'low' | 'medium' | 'high' | 'critical';
   compromiseLevel: 'none' | 'initial' | 'partial' | 'full';
   category?: string;
+  projectId?: string; // Association avec un projet
   // Legacy credentials format (still supported for backward compatibility)
   usernames: string[];
   passwords: string[];
@@ -132,15 +133,10 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
-  client?: string;
-  scope: string[];
-  startDate: Date;
-  endDate?: Date;
-  status: 'active' | 'completed' | 'paused';
-  hosts: Host[];
-  categories: Category[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+  color: string;
+  isActive: boolean;
 }
 
 export interface NetworkNode {

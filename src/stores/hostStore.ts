@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { persist, devtools } from 'zustand/middleware';
 import { Host, Category, HostFilters } from '@/types';
 import { migrateAllHosts as migrateAllHostsUtil, migrateHost } from '@/utils/migrations';
+import { useProjectStore } from './projectStore';
 
 interface NetworkNodeData {
   x: number;
@@ -40,10 +41,16 @@ interface HostState {
   
   importData: (data: any) => void;
   exportData: () => any;
+  exportProjectData: (projectId: string) => any;
   clearAllData: () => void;
+  clearProjectData: (projectId: string) => void;
 
   ensureUniqueCategoryIds: () => void;
   migrateAllHosts: () => void;
+  
+  // Project-related methods
+  getHostsByProject: (projectId: string) => Host[];
+  getCategoriesByProject: (projectId: string) => Category[];
 }
 
 export const useHostStore = create<HostState>()(
@@ -307,6 +314,69 @@ export const useHostStore = create<HostState>()(
           const state = get();
           const migratedHosts = migrateAllHostsUtil(state.hosts);
           set({ hosts: migratedHosts });
+        },
+
+        // Project-related methods
+        getHostsByProject: (projectId: string) => {
+          const state = get();
+          return Object.values(state.hosts).filter(host => host.projectId === projectId);
+        },
+
+        getCategoriesByProject: (projectId: string) => {
+          const state = get();
+          const projectHosts = Object.values(state.hosts).filter(host => host.projectId === projectId);
+          const projectCategoryIds = new Set(projectHosts.map(host => host.category).filter(Boolean));
+          return state.categories.filter(category => projectCategoryIds.has(category.id));
+        },
+
+        exportProjectData: (projectId: string) => {
+          const state = get();
+          const projectHosts = state.getHostsByProject(projectId);
+          const projectCategories = state.getCategoriesByProject(projectId);
+          const projectNetworkNodes = Object.fromEntries(
+            Object.entries(state.networkNodes).filter(([hostId]) => 
+              projectHosts.some(host => host.id === hostId)
+            )
+          );
+          
+          return {
+            hosts: projectHosts.reduce((acc, host) => {
+              acc[host.id] = host;
+              return acc;
+            }, {} as Record<string, Host>),
+            categories: projectCategories,
+            networkNodes: projectNetworkNodes,
+            filters: state.filters,
+            viewMode: state.viewMode,
+            metadata: {
+              exportedAt: new Date().toISOString(),
+              version: '2.0.0',
+              projectId,
+              totalHosts: projectHosts.length,
+              totalCategories: projectCategories.length,
+            },
+          };
+        },
+
+        clearProjectData: (projectId: string) => {
+          set((state) => {
+            const projectHosts = Object.values(state.hosts).filter(host => host.projectId === projectId);
+            const hostIdsToDelete = projectHosts.map(host => host.id);
+            
+            const remainingHosts = Object.fromEntries(
+              Object.entries(state.hosts).filter(([id]) => !hostIdsToDelete.includes(id))
+            );
+            
+            const remainingNetworkNodes = Object.fromEntries(
+              Object.entries(state.networkNodes).filter(([hostId]) => !hostIdsToDelete.includes(hostId))
+            );
+            
+            return {
+              hosts: remainingHosts,
+              networkNodes: remainingNetworkNodes,
+              selectedHosts: state.selectedHosts.filter(id => !hostIdsToDelete.includes(id)),
+            };
+          });
         },
       }),
       {

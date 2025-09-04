@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Download, Upload, FileText, Trash2, Server, Folder, Copy, Check, FileArchive, FileText as Report, Network, Key, AlertTriangle, Info } from 'lucide-react';
+import { X, Download, Upload, FileText, Trash2, Server, Folder, FolderOpen, Copy, Check, FileArchive, FileText as Report, Network, Key, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Textarea } from '@/components/ui/textarea';
 
 import { useHostStore } from '@/stores/hostStore';
+import { useProjectStore } from '@/stores/projectStore';
 import { downloadFile, readFileAsText } from '@/utils';
 import JSZip from 'jszip';
 
@@ -39,7 +40,11 @@ interface ExportData {
 export const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   onClose,
 }) => {
-  const { hosts, categories, networkNodes, clearAllData, addHost, addCategory, updateNetworkNode } = useHostStore();
+  const { hosts, categories, networkNodes, clearAllData, addHost, addCategory, updateNetworkNode, exportProjectData, clearProjectData } = useHostStore();
+  const { getCurrentProject, getAllProjects } = useProjectStore();
+  
+  // Get all projects for the dropdown
+  const allProjects = getAllProjects();
   
   // Convertir l'objet hosts en tableau
   const hostsArray = Object.values(hosts);
@@ -70,6 +75,8 @@ export const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   const [importOptions, setImportOptions] = useState({ hosts: true, categories: true, networkNodes: true });
   const [importPreview, setImportPreview] = useState<ExportData | null>(null);
   const [exportType, setExportType] = useState<'json' | 'zip' | 'report'>('json');
+  const [exportScope, setExportScope] = useState<'all' | 'current' | 'selected'>('current');
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [exportPreviewPaths, setExportPreviewPaths] = useState<string[]>([]);
   const [importFileTreePaths, setImportFileTreePaths] = useState<string[]>([]);
@@ -427,34 +434,112 @@ ${hostsArray.filter((h: any) => h.status === 'compromised').map((host: any) => `
   const handleExportComplete = async () => {
     setIsExporting(true);
     try {
-      const totalConnections = hostsArray.reduce((acc: number, h: any) => 
-        acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
-      );
-      const totalCredentials = hostsArray.reduce((acc: number, h: any) => 
-        acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
-      const totalVulnerabilities = hostsArray.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
+      let exportData: ExportData;
+      const currentProject = getCurrentProject();
+      const allProjects = getAllProjects();
 
-      const exportData: ExportData = {
-        metadata: {
-          exportedAt: new Date().toISOString(),
-          version: '2.0.0',
-          totalHosts: hostsArray.length,
-          totalCategories: categories.length,
-          totalConnections,
-          totalCredentials,
-          totalVulnerabilities
-        },
-        hosts: hostsArray,
-        categories,
-        networkNodes,
-        reports: {
-          executive: generateExecutiveReport(),
-          technical: generateTechnicalReport(),
-          credentials: generateCredentialsReport(),
-          vulnerabilities: generateVulnerabilitiesReport(),
-          network: generateNetworkReport()
-        }
-      };
+      if (exportScope === 'current' && currentProject) {
+        // Export du projet actuel uniquement
+        const projectData = exportProjectData(currentProject.id);
+        const projectHosts = Object.values(projectData.hosts);
+        const projectCategories = projectData.categories;
+        
+        const totalConnections = projectHosts.reduce((acc: number, h: any) => 
+          acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
+        );
+        const totalCredentials = projectHosts.reduce((acc: number, h: any) => 
+          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
+        const totalVulnerabilities = projectHosts.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
+
+        exportData = {
+          metadata: {
+            exportedAt: new Date().toISOString(),
+            version: '2.0.0',
+            totalHosts: projectHosts.length,
+            totalCategories: projectCategories.length,
+            totalConnections,
+            totalCredentials,
+            totalVulnerabilities,
+            projectId: currentProject.id,
+            projectName: currentProject.name
+          },
+          hosts: projectHosts,
+          categories: projectCategories,
+          networkNodes: projectData.networkNodes,
+          reports: {
+            executive: generateExecutiveReport(),
+            technical: generateTechnicalReport(),
+            credentials: generateCredentialsReport(),
+            vulnerabilities: generateVulnerabilitiesReport(),
+            network: generateNetworkReport()
+          }
+        };
+      } else if (exportScope === 'selected' && selectedProjects.length > 0) {
+        // Export des projets sélectionnés
+        const selectedProjectsData = selectedProjects.map(projectId => exportProjectData(projectId));
+        const allSelectedHosts = selectedProjectsData.flatMap(data => Object.values(data.hosts));
+        const allSelectedCategories = selectedProjectsData.flatMap(data => data.categories);
+        
+        const totalConnections = allSelectedHosts.reduce((acc: number, h: any) => 
+          acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
+        );
+        const totalCredentials = allSelectedHosts.reduce((acc: number, h: any) => 
+          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
+        const totalVulnerabilities = allSelectedHosts.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
+
+        exportData = {
+          metadata: {
+            exportedAt: new Date().toISOString(),
+            version: '2.0.0',
+            totalHosts: allSelectedHosts.length,
+            totalCategories: allSelectedCategories.length,
+            totalConnections,
+            totalCredentials,
+            totalVulnerabilities,
+            selectedProjects: selectedProjects
+          },
+          hosts: allSelectedHosts,
+          categories: allSelectedCategories,
+          networkNodes: selectedProjectsData.reduce((acc, data) => ({ ...acc, ...data.networkNodes }), {}),
+          reports: {
+            executive: generateExecutiveReport(),
+            technical: generateTechnicalReport(),
+            credentials: generateCredentialsReport(),
+            vulnerabilities: generateVulnerabilitiesReport(),
+            network: generateNetworkReport()
+          }
+        };
+      } else {
+        // Export de tous les projets
+        const totalConnections = hostsArray.reduce((acc: number, h: any) => 
+          acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
+        );
+        const totalCredentials = hostsArray.reduce((acc: number, h: any) => 
+          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
+        const totalVulnerabilities = hostsArray.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
+
+        exportData = {
+          metadata: {
+            exportedAt: new Date().toISOString(),
+            version: '2.0.0',
+            totalHosts: hostsArray.length,
+            totalCategories: categories.length,
+            totalConnections,
+            totalCredentials,
+            totalVulnerabilities
+          },
+          hosts: hostsArray,
+          categories,
+          networkNodes,
+          reports: {
+            executive: generateExecutiveReport(),
+            technical: generateTechnicalReport(),
+            credentials: generateCredentialsReport(),
+            vulnerabilities: generateVulnerabilitiesReport(),
+            network: generateNetworkReport()
+          }
+        };
+      }
 
       if (exportType === 'json') {
         const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -964,6 +1049,77 @@ ${exportData.reports.network}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-400">Portée d'export</label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                          type="radio"
+                          name="exportScope"
+                          value="current"
+                          checked={exportScope === 'current'}
+                          onChange={(e) => setExportScope(e.target.value as 'all' | 'current' | 'selected')}
+                          className="text-blue-500"
+                        />
+                        <Folder className="w-4 h-4" />
+                        Projet actuel uniquement
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                          type="radio"
+                          name="exportScope"
+                          value="selected"
+                          checked={exportScope === 'selected'}
+                          onChange={(e) => setExportScope(e.target.value as 'all' | 'current' | 'selected')}
+                          className="text-blue-500"
+                        />
+                        <FolderOpen className="w-4 h-4" />
+                        Projets sélectionnés
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-300">
+                        <input
+                          type="radio"
+                          name="exportScope"
+                          value="all"
+                          checked={exportScope === 'all'}
+                          onChange={(e) => setExportScope(e.target.value as 'all' | 'current' | 'selected')}
+                          className="text-blue-500"
+                        />
+                        <Server className="w-4 h-4" />
+                        Tous les projets
+                      </label>
+                    </div>
+                  </div>
+
+                  {exportScope === 'selected' && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-slate-400">Sélectionner les projets</label>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {allProjects.map((project) => (
+                          <label key={project.id} className="flex items-center gap-2 text-sm text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={selectedProjects.includes(project.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedProjects([...selectedProjects, project.id]);
+                                } else {
+                                  setSelectedProjects(selectedProjects.filter(id => id !== project.id));
+                                }
+                              }}
+                              className="text-blue-500"
+                            />
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: project.color }}
+                            />
+                            <span>{project.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-400">Type d'export</label>
                     <div className="space-y-2">

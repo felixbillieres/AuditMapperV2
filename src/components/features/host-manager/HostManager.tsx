@@ -9,18 +9,13 @@ import {
   List, 
   Grid, 
   Network, 
-  CheckCircle,
-  AlertTriangle,
   Target,
-  Shield,
   Maximize2,
   Minimize2,
   X,
   Eye,
   RefreshCw,
-  Layers,
   ArrowRight,
-  Zap,
   Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,8 +31,11 @@ import { StatsModal } from './StatsModal';
 import { ExpandedHostModal } from './ExpandedHostModal';
 import { LegendButton } from './LegendButton';
 import { useHostStore } from '@/stores/hostStore';
+import { useProjectStore } from '@/stores/projectStore';
 import { Host } from '@/types';
 import InfoModal from '@/components/ui/InfoModal';
+import { ProjectDropdown } from './ProjectDropdown';
+import { ProjectStats } from './ProjectStats';
 // import InputDialog from '@/components/ui/InputDialog';
 // import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
@@ -47,6 +45,7 @@ interface HostManagerProps {
 
 export const HostManager: React.FC<HostManagerProps> = () => {
   const { hosts, categories, updateHost, addHost, ensureUniqueCategoryIds } = useHostStore();
+  const { getCurrentProject, getAllProjects, addProject } = useProjectStore();
 
   // Données de légende pour chaque type de visualisation
   const getLegendData = () => {
@@ -92,12 +91,32 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[]>([]);
   const [statsModalOpen, setStatsModalOpen] = useState(false);
-  const [statsModalType, setStatsModalType] = useState<'total' | 'active' | 'compromised' | 'critical' | 'credentials' | 'exploitation'>('total');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { ensureUniqueCategoryIds(); }, [ensureUniqueCategoryIds]);
 
-  // Convert hosts object to array
-  const hostsArray = Object.values(hosts);
+  // Initialiser un projet par défaut si aucun projet n'existe
+  React.useEffect(() => {
+    const allProjects = getAllProjects();
+    if (allProjects.length === 0) {
+      addProject({
+        name: 'Projet par défaut',
+        description: 'Projet initial créé automatiquement',
+        color: '#3b82f6',
+      });
+    }
+  }, [getAllProjects, addProject]);
+
+  // Get current project
+  const currentProject = getCurrentProject();
+
+  // Convert hosts object to array and filter by project
+  const hostsArray = useMemo(() => {
+    const allHosts = Object.values(hosts);
+    if (!currentProject) {
+      return allHosts; // Show all hosts if no project selected
+    }
+    return allHosts.filter(host => host.projectId === currentProject.id);
+  }, [hosts, currentProject]);
 
   // Filter hosts based on search and category - mémorisé pour éviter les re-renders inutiles
   const filteredHosts = useMemo(() => {
@@ -319,6 +338,9 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 <p className="text-slate-400">Organisez et gérez vos systèmes par catégories</p>
               </div>
             </div>
+            <div className="ml-8">
+              <ProjectDropdown />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -355,9 +377,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   priority: 'medium' as const,
                   compromiseLevel: 'none' as const,
                   category: (categories && categories[0]?.id) || '',
+                  projectId: currentProject?.id,
                   usernames: [],
                   passwords: [],
                   hashes: [],
+                  credentials: [],
                   exploitationSteps: [],
                   screenshots: [],
                   vulnerabilities: [],
@@ -394,92 +418,21 @@ export const HostManager: React.FC<HostManagerProps> = () => {
         </div>
 
         {/* Statistics Cards - Compact for laptops */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 mb-4">
-          <Card 
-            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
-            onClick={() => { setStatsModalType('total'); setStatsModalOpen(true); }}
-          >
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
+        {currentProject ? (
+          <ProjectStats hosts={hostsArray} className="mb-4" />
+        ) : (
+          <div className="mb-4 p-4 bg-slate-800/50 border border-slate-600 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center">
                 <Server className="w-4 h-4 text-blue-400" />
-                <div>
-                  <p className="text-lg font-bold text-slate-100">{stats.total}</p>
-                  <p className="text-xs text-slate-400">Total</p>
-                </div>
               </div>
-            </CardContent>
-          </Card>
-          <Card 
-            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
-            onClick={() => { setStatsModalType('active'); setStatsModalOpen(true); }}
-          >
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-400" />
-                <div>
-                  <p className="text-lg font-bold text-slate-100">{stats.active}</p>
-                  <p className="text-xs text-slate-400">Actifs</p>
-                </div>
+              <div>
+                <h3 className="text-slate-100 font-medium">Aucun projet sélectionné</h3>
+                <p className="text-sm text-slate-400">Sélectionnez un projet pour voir les statistiques et commencer à travailler</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card 
-            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
-            onClick={() => { setStatsModalType('compromised'); setStatsModalOpen(true); }}
-          >
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-orange-400" />
-                <div>
-                  <p className="text-lg font-bold text-slate-100">{stats.compromised}</p>
-                  <p className="text-xs text-slate-400">Compromis</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card 
-            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
-            onClick={() => { setStatsModalType('critical'); setStatsModalOpen(true); }}
-          >
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-red-400" />
-                <div>
-                  <p className="text-lg font-bold text-slate-100">{stats.critical}</p>
-                  <p className="text-xs text-slate-400">Critiques</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card 
-            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
-            onClick={() => { setStatsModalType('credentials'); setStatsModalOpen(true); }}
-          >
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-purple-400" />
-                <div>
-                  <p className="text-lg font-bold text-slate-100">{stats.credentials}</p>
-                  <p className="text-xs text-slate-400">Credentials</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card 
-            className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
-            onClick={() => { setStatsModalType('exploitation'); setStatsModalOpen(true); }}
-          >
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-orange-400" />
-                <div>
-                  <p className="text-lg font-bold text-slate-100">{stats.vulnerabilities}</p>
-                  <p className="text-xs text-slate-400">Étapes d'exploitation</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+        )}
 
         {/* Search and View Controls */}
         <div className="flex items-center gap-4">
@@ -641,9 +594,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         priority: 'medium' as const,
                         compromiseLevel: 'none' as const,
                         category: category.id,
+                        projectId: currentProject?.id,
                         usernames: [],
                         passwords: [],
                         hashes: [],
+                        credentials: [],
                         exploitationSteps: [],
                         screenshots: [],
                         vulnerabilities: [],
@@ -705,9 +660,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                             priority: 'medium' as const,
                             compromiseLevel: 'none' as const,
                             category: (categories && categories[0]?.id) || '',
+                            projectId: currentProject?.id,
                             usernames: [],
                             passwords: [],
                             hashes: [],
+                            credentials: [],
                             exploitationSteps: [],
                             screenshots: [],
                             vulnerabilities: [],
@@ -1053,7 +1010,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
           <StatsModal
             isOpen={statsModalOpen}
             onClose={() => setStatsModalOpen(false)}
-            type={statsModalType}
+            type="total"
             hosts={hostsArray}
             stats={stats}
           />
@@ -1214,7 +1171,9 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         priority: 'medium',
                         compromiseLevel: 'none',
                         category: bulkCategoryId || (categories[0]?.id || ''),
+                        projectId: currentProject?.id,
                         usernames: [], passwords: [], hashes: [],
+                        credentials: [],
                         vulnerabilities: [], exploitationSteps: [], tags: h.tags || [], notes: '',
                         services: (h.services || []).map((s:any)=>({ name: s.service, port: s.port, status: s.status, version: s.version })),
                         ports: (h.services || []).map((s:any)=>({ port: s.port, status: s.status as any, service: s.service, version: s.version })),
@@ -1258,7 +1217,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
       {/* Modal Agrandi */}
       {showExpandedModal && selectedHost && (
         <ExpandedHostModal
-          selectedHost={selectedHost}
+          currentHost={selectedHost}
           isOpen={showExpandedModal}
           onClose={() => setShowExpandedModal(false)}
           onUpdateHost={handleUpdateHost}
