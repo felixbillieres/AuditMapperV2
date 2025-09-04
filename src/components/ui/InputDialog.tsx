@@ -21,7 +21,7 @@ const InputDialog: React.FC<InputDialogProps> = ({ open, title, placeholder, con
 
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 p-4">
       <div className="w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 shadow-xl p-4">
         <div className="text-slate-100 font-semibold mb-2">{title}</div>
         <Input value={value} onChange={(e)=>setValue(e.target.value)} placeholder={placeholder} type={type} className="bg-slate-700 border-slate-600 text-slate-100 mb-3" />

@@ -34,6 +34,7 @@ import ClassicVisualization from './ClassicVisualization';
 import KillchainVisualization from './KillchainVisualization';
 import { StatsModal } from './StatsModal';
 import { ExpandedHostModal } from './ExpandedHostModal';
+import { LegendButton } from './LegendButton';
 import { useHostStore } from '@/stores/hostStore';
 import { Host } from '@/types';
 import InfoModal from '@/components/ui/InfoModal';
@@ -46,6 +47,29 @@ interface HostManagerProps {
 
 export const HostManager: React.FC<HostManagerProps> = () => {
   const { hosts, categories, updateHost, addHost, ensureUniqueCategoryIds } = useHostStore();
+
+  // Données de légende pour chaque type de visualisation
+  const getLegendData = () => {
+    if (networkStyle === 'killchain') {
+      return {
+        title: 'Légende Killchain',
+        items: [
+          { color: '#ef4444', label: 'Exploits', description: 'Connexions d\'exploitation' },
+          { color: '#a855f7', label: 'Admin', description: 'Connexions administrateur' },
+          { color: '#22c55e', label: 'Partages', description: 'Partages réseau' },
+          { color: '#3b82f6', label: 'Web', description: 'Services web' }
+        ]
+      };
+    } else {
+      return {
+        title: 'Légende Classique',
+        items: [
+          { color: '#3b82f6', label: 'Serveurs', description: 'Machines serveur' },
+          { color: '#a855f7', label: 'Routeurs', description: 'Équipements réseau' }
+        ]
+      };
+    }
+  };
   
   const [selectedHost, setSelectedHost] = useState<Host | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -58,8 +82,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [networkFullscreen, setNetworkFullscreen] = useState(false);
   const [networkStyle, setNetworkStyle] = useState<'classic' | 'killchain'>('classic');
   const [showNetworkLabels, setShowNetworkLabels] = useState(true);
-  const [showNetworkLegend, setShowNetworkLegend] = useState(true);
   const [categoriesSidebarCollapsed, setCategoriesSidebarCollapsed] = useState(false);
+  const [showStyleInfo, setShowStyleInfo] = useState(false);
 
   const [about, setAbout] = useState(false);
   const [bulkParserOpen, setBulkParserOpen] = useState(false);
@@ -104,6 +128,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   };
 
   const handleOpenExpandedModal = () => {
+    setShowExpandedModal(true);
+  };
+
+  const handleNodeClickInFullscreen = (host: Host) => {
+    setSelectedHost(host);
     setShowExpandedModal(true);
   };
 
@@ -754,7 +783,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               showSidebar && sidebarExpanded ? 'mr-[50%]' : showSidebar ? 'mr-[28rem]' : ''
             }`} style={{ height: 'calc(100vh - 120px)', minHeight: '800px' }}>
               {/* Contrôles unifiés */}
-              <div className="absolute top-4 left-4 z-30 space-y-2">
+              <div className="absolute top-4 right-4 z-30 space-y-2">
                 {/* Style Selector */}
                 <div className="bg-slate-800/95 backdrop-blur-md rounded-xl p-3 border border-slate-600/50 shadow-2xl ring-1 ring-white/5">
                   <div className="flex items-center gap-2">
@@ -796,7 +825,71 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         Killchain
                       </button>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowStyleInfo(!showStyleInfo)}
+                      className="ml-2 border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2 bg-slate-700/80 hover:bg-slate-600/80"
+                      title="Informations sur le mode"
+                    >
+                      <Info className="w-3 h-3" />
+                    </Button>
                   </div>
+                  
+                  {/* Dropdown des informations du mode */}
+                  {showStyleInfo && (
+                    <div className="mt-3 pt-3 border-t border-slate-600/50">
+                      <h3 className="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
+                        {networkStyle === 'killchain' ? (
+                          <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
+                          </svg>
+                        ) : (
+                          <Info className="w-4 h-4 text-blue-400" />
+                        )}
+                        {networkStyle === 'classic' ? 'Mode Classique' : 'Mode Killchain'}
+                      </h3>
+                      <div className="space-y-1 text-xs text-slate-300">
+                        {networkStyle === 'classic' ? (
+                          <>
+                            <div className="flex items-start gap-2">
+                              <span className="text-purple-400">•</span>
+                              <span><strong className="text-slate-200">Zones réseau</strong> par catégorie</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-purple-400">•</span>
+                              <span><strong className="text-slate-200">Nœuds avec emojis</strong> selon le type</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-purple-400">•</span>
+                              <span><strong className="text-slate-200">Connexions colorées</strong> par type</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-purple-400">•</span>
+                              <span><strong className="text-slate-200">Zoom et pan fluides</strong></span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-start gap-2">
+                              <span className="text-red-400">•</span>
+                              <span><strong className="text-slate-200">Phases d'attaque</strong> visuelles</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-red-400">•</span>
+                              <span><strong className="text-slate-200">Connexions d'exploitation</strong> colorées</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="text-red-400">•</span>
+                              <span><strong className="text-slate-200">Workflow d'attaque</strong> complet</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Petits boutons discrets */}
@@ -839,190 +932,14 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                     <Eye className="w-3 h-3" />
                   </Button>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowNetworkLegend(!showNetworkLegend)}
-                    className={`border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2 ${
-                      showNetworkLegend ? 'bg-emerald-600/80 hover:bg-emerald-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
-                    }`}
-                    title="Afficher/Masquer légende"
-                  >
-                    <Layers className="w-3 h-3" />
-                  </Button>
+                  <LegendButton
+                    {...getLegendData()}
+                    className=""
+                  />
                 </div>
               </div>
 
-              {/* Légende */}
-              {showNetworkLegend && (
-                <div className="absolute bottom-4 z-10" style={{ right: 16 }}>
-                  <div className="bg-slate-800/95 backdrop-blur-md rounded-lg p-3 border border-slate-600/50 shadow-2xl ring-1 ring-white/5 max-w-xs">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-emerald-400" />
-                        {networkStyle === 'killchain' ? 'Légende Killchain' : 'Légende Classique'}
-                      </h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowNetworkLegend(false)}
-                        className="h-6 w-6 p-0 text-slate-400 hover:text-slate-200"
-                      >
-                        ×
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-2 text-xs">
-                      {networkStyle === 'killchain' ? (
-                        <>
-                          <div>
-                            <h4 className="text-slate-300 font-medium mb-1">Types de connexions</h4>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-0.5 bg-red-500"></div>
-                                <span className="text-slate-300 text-xs">Exploits</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-0.5 bg-purple-500"></div>
-                                <span className="text-slate-300 text-xs">Admin</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-0.5 bg-green-500"></div>
-                                <span className="text-slate-300 text-xs">Partages</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-0.5 bg-blue-500"></div>
-                                <span className="text-slate-300 text-xs">Web</span>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <h4 className="text-slate-300 font-medium mb-1">Types d'appareils</h4>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded"></div>
-                                <span className="text-slate-300 text-xs">Serveurs</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-purple-500 rounded"></div>
-                                <span className="text-slate-300 text-xs">Routeurs</span>
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Bouton pour réafficher la légende */}
-              {!showNetworkLegend && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNetworkLegend(true)}
-                  className="absolute bottom-4 z-10 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
-                  style={{ right: 16 }}
-                >
-                  <Layers className="w-4 h-4" />
-                </Button>
-              )}
-
-              {/* Instructions */}
-              <div className="absolute bottom-4 left-4 z-10" style={{ bottom: showNetworkLegend ? '120px' : '16px' }}>
-                <div className="bg-slate-800/95 backdrop-blur-md rounded-lg p-3 border border-slate-600/50 shadow-2xl ring-1 ring-white/5 max-w-sm">
-                  <h3 className="text-sm font-semibold text-slate-100 mb-2 flex items-center gap-2">
-                    {networkStyle === 'killchain' ? (
-                      <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
-                      </svg>
-                    ) : networkStyle === 'bloodhound' ? (
-                      <svg className="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
-                      </svg>
-                    ) : networkStyle === 'killchain' ? (
-                      <svg className="w-4 h-4 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none"/>
-                        <path d="M8 4L16 4" stroke="currentColor" strokeWidth="2"/>
-                        <path d="M8 20L16 20" stroke="currentColor" strokeWidth="2"/>
-                      </svg>
-                    ) : (
-                      <Info className="w-4 h-4 text-blue-400" />
-                    )}
-                    {networkStyle === 'classic' ? 'Mode Classique' : 'Mode Killchain'}
-                  </h3>
-                  <div className="space-y-1 text-xs text-slate-300">
-                    {networkStyle === 'classic' ? (
-                      <>
-                        <div className="flex items-start gap-2">
-                          <span className="text-purple-400">•</span>
-                          <span><strong className="text-slate-200">Zones réseau</strong> par catégorie</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-purple-400">•</span>
-                          <span><strong className="text-slate-200">Nœuds avec emojis</strong> selon le type</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-purple-400">•</span>
-                          <span><strong className="text-slate-200">Connexions colorées</strong> par type</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-purple-400">•</span>
-                          <span><strong className="text-slate-200">Zoom et pan</strong> fluides</span>
-                        </div>
-                      </>
-                    ) : networkStyle === 'killchain' ? (
-                      <>
-                        <div className="flex items-start gap-2">
-                          <span className="text-indigo-400">•</span>
-                          <span><strong className="text-slate-200">Phases KillChain</strong> avec style BloodHound</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-indigo-400">•</span>
-                          <span><strong className="text-slate-200">Nœuds avec emojis</strong> selon le type d'appareil</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-indigo-400">•</span>
-                          <span><strong className="text-slate-200">Connexions courbes</strong> colorées par type</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-indigo-400">•</span>
-                          <span><strong className="text-slate-200">Organisation par catégorie</strong> en phases</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-400">•</span>
-                          <span><strong className="text-slate-200">Cliquer</strong> sur un nœud pour ouvrir la sidebar</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-400">•</span>
-                          <span><strong className="text-slate-200">Glisser</strong> pour repositionner les nœuds</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-400">•</span>
-                          <span><strong className="text-slate-200">Molette</strong> pour zoomer/dézoomer</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-blue-400">•</span>
-                          <span><strong className="text-slate-200">Connexions</strong> via la sidebar</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
 
               {/* Network Visualization Component */}
               {networkStyle === 'classic' ? (
@@ -1048,7 +965,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setNetworkFullscreen(!networkFullscreen)}
-                className="absolute top-4 right-4 z-20 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
+                className="absolute top-4 left-4 z-20 bg-slate-800/95 backdrop-blur-md border-slate-600 text-slate-200 hover:bg-slate-700 shadow-lg"
+                title={networkFullscreen ? "Quitter le plein écran" : "Mode plein écran"}
               >
                 {networkFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </Button>
@@ -1152,7 +1070,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             className="fixed inset-0 z-50 bg-slate-900"
           >
             <div className="h-full relative">
-              <div className="absolute top-4 right-4 z-20 flex gap-2">
+              <div className="absolute top-4 left-4 z-20 flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1164,38 +1082,30 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                 </Button>
               </div>
               {networkStyle === 'classic' ? (
-                <NetworkVisualization
+                <ClassicVisualization
                   hosts={filteredHosts}
                   categories={categories}
-                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  onNodeSelect={handleNodeClickInFullscreen}
                   selectedHost={selectedHost}
-                  uiRightOffset={120}
                   showLabels={showNetworkLabels}
-                  graphStyle={classicGraphStyle}
                 />
               ) : networkStyle === 'killchain' ? (
                 <KillchainVisualization
                   hosts={filteredHosts}
                   categories={categories}
-                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
-                  selectedHost={selectedHost}
-                  showLabels={showNetworkLabels}
-                />
-              ) : networkStyle === 'classic' ? (
-                <ClassicVisualization
-                  hosts={filteredHosts}
-                  categories={categories}
-                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  onNodeSelect={handleNodeClickInFullscreen}
                   selectedHost={selectedHost}
                   showLabels={showNetworkLabels}
                 />
               ) : (
-                <KillchainVisualization
+                <NetworkVisualization
                   hosts={filteredHosts}
                   categories={categories}
-                  onNodeSelect={(h)=>{ handleHostSelect(h); setNetworkFullscreen(false); }}
+                  onNodeSelect={handleNodeClickInFullscreen}
                   selectedHost={selectedHost}
+                  uiRightOffset={120}
                   showLabels={showNetworkLabels}
+                  graphStyle="bloodhound"
                 />
               )}
             </div>

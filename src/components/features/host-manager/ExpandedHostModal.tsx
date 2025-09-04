@@ -66,6 +66,8 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [newPassOpen, setNewPassOpen] = useState(false);
   const [newHashOpen, setNewHashOpen] = useState(false);
+  const [editingExploitationStep, setEditingExploitationStep] = useState<any>(null);
+
   
   // États pour l'édition des informations de base
   const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false);
@@ -254,6 +256,35 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
   const handleRemoveVulnerability = (vulnerabilityId: string) => {
     const updatedVulnerabilities = currentHost.vulnerabilities?.filter(v => v.id !== vulnerabilityId) || [];
     handleUpdateHost(currentHost.id, { vulnerabilities: updatedVulnerabilities });
+  };
+
+  // Fonctions pour les étapes d'exploitation
+  const handleSaveExploitationStep = (stepData: any) => {
+    if (editingExploitationStep) {
+      // Modifier une étape existante
+      const updatedSteps = (currentHost.exploitationSteps || []).map(step => 
+        step.id === editingExploitationStep.id 
+          ? { ...stepData, id: editingExploitationStep.id }
+          : step
+      );
+      handleUpdateHost(currentHost.id, { exploitationSteps: updatedSteps });
+    } else {
+      // Ajouter une nouvelle étape
+      const newStep = {
+        ...stepData,
+        id: Date.now().toString(),
+      };
+      handleUpdateHost(currentHost.id, { 
+        exploitationSteps: [...(currentHost.exploitationSteps || []), newStep]
+      });
+    }
+    setEditingExploitationStep(null);
+    setShowExploitationModal(false);
+  };
+
+  const handleDeleteExploitationStep = (stepId: string) => {
+    const updatedSteps = (currentHost.exploitationSteps || []).filter(step => step.id !== stepId);
+    handleUpdateHost(currentHost.id, { exploitationSteps: updatedSteps });
   };
 
   if (!isOpen) return null;
@@ -743,12 +774,22 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <Card className="bg-slate-800 border-slate-700">
                       <CardHeader>
-                        <CardTitle className="text-slate-100">Étapes d'exploitation</CardTitle>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-slate-100">Étapes d'exploitation</CardTitle>
+                          <Button
+                            size="sm"
+                            onClick={() => setShowExploitationModal(true)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Ajouter une étape
+                          </Button>
+                        </div>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
                           {currentHost.exploitationSteps?.map((step, index) => (
-                            <div key={index} className="p-4 bg-slate-700/50 rounded-lg">
+                            <div key={step.id || index} className="p-4 bg-slate-700/50 rounded-lg">
                               <div className="flex items-center justify-between mb-2">
                                 <h4 className="text-slate-100 font-medium">{step.title}</h4>
                                 <div className="flex items-center gap-2">
@@ -757,18 +798,43 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
                                     step.status === 'in-progress' ? 'bg-yellow-500' : 'bg-gray-500'
                                   }`} />
                                   <span className="text-slate-400 text-sm capitalize">{step.status}</span>
+                                  <div className="flex items-center gap-1 ml-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setEditingExploitationStep(step);
+                                        setShowExploitationModal(true);
+                                      }}
+                                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 p-1"
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteExploitationStep(step.id)}
+                                      className="text-red-400 hover:text-red-300 hover:bg-red-900/20 p-1"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                               <p className="text-slate-300 text-sm">{step.description}</p>
-                              {step.commands && (
+                              {step.command && (
                                 <div className="mt-2">
-                                  <h5 className="text-slate-200 text-sm font-medium mb-1">Commandes :</h5>
-                                  <div className="space-y-1">
-                                    {step.commands.map((cmd, cmdIndex) => (
-                                      <div key={cmdIndex} className="p-2 bg-slate-800 rounded font-mono text-xs text-slate-300">
-                                        {cmd}
-                                      </div>
-                                    ))}
+                                  <h5 className="text-slate-200 text-sm font-medium mb-1">Commande :</h5>
+                                  <div className="p-2 bg-slate-800 rounded font-mono text-xs text-slate-300">
+                                    {step.command}
+                                  </div>
+                                </div>
+                              )}
+                              {step.output && (
+                                <div className="mt-2">
+                                  <h5 className="text-slate-200 text-sm font-medium mb-1">Output :</h5>
+                                  <div className="p-2 bg-slate-800 rounded font-mono text-xs text-slate-300">
+                                    {step.output}
                                   </div>
                                 </div>
                               )}
@@ -1539,9 +1605,13 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
 
       {showExploitationModal && (
         <ExploitationModal
-          host={currentHost}
-          onClose={() => setShowExploitationModal(false)}
-          onSave={(exploitationSteps) => handleUpdateHost(currentHost.id, { exploitationSteps })}
+          isOpen={showExploitationModal}
+          onClose={() => {
+            setShowExploitationModal(false);
+            setEditingExploitationStep(null);
+          }}
+          onSave={handleSaveExploitationStep}
+          editingStep={editingExploitationStep}
         />
       )}
 

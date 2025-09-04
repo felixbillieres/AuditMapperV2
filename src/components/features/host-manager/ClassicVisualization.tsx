@@ -3,6 +3,7 @@ import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import coseBilkent from 'cytoscape-cose-bilkent';
 import { Host, Category } from '@/types';
+import { LegendButton } from './LegendButton';
 
 // Enregistrer les extensions
 cytoscape.use(dagre);
@@ -387,61 +388,22 @@ const ClassicVisualization: React.FC<ClassicVisualizationProps> = ({
         style={{ minHeight: '600px' }}
       />
       
-      {/* Légende Classic mode sombre */}
-      <div className="absolute top-4 right-4 bg-slate-800/95 backdrop-blur-md rounded-lg p-4 border border-slate-600 shadow-lg">
-        <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
-          <span className="text-purple-400">🔍</span>
-          Classic Legend
-        </h3>
-        <div className="space-y-3 text-xs">
-          <div>
-            <h4 className="text-slate-300 font-medium mb-2">Node Types</h4>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#4FC3F7' }}></div>
-                <span className="text-slate-300">👤 Users</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#F44336' }}></div>
-                <span className="text-slate-300">🖥️ Servers</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#FF9800' }}></div>
-                <span className="text-slate-300">💻 Workstations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#4CAF50' }}></div>
-                <span className="text-slate-300">🗄️ Databases</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#9C27B0' }}></div>
-                <span className="text-slate-300">📡 Routers</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h4 className="text-slate-300 font-medium mb-2">Connection Types</h4>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-0.5 bg-red-500"></div>
-                <span className="text-slate-300">Exploits/Attacks</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-0.5 bg-purple-500"></div>
-                <span className="text-slate-300">Admin Access</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-0.5 bg-green-500"></div>
-                <span className="text-slate-300">Shares</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-0.5 bg-blue-500"></div>
-                <span className="text-slate-300">Web/HTTP</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Bouton légende compact */}
+      <LegendButton
+        title="Légende Classique"
+        items={[
+          { color: '#4FC3F7', label: '👤 Users', description: 'Utilisateurs' },
+          { color: '#F44336', label: '🖥️ Servers', description: 'Serveurs' },
+          { color: '#FF9800', label: '💻 Workstations', description: 'Postes de travail' },
+          { color: '#4CAF50', label: '🗄️ Databases', description: 'Bases de données' },
+          { color: '#9C27B0', label: '📡 Routers', description: 'Routeurs' },
+          { color: '#ef4444', label: 'Exploits/Attacks', description: 'Connexions d\'exploitation' },
+          { color: '#a855f7', label: 'Admin Access', description: 'Accès administrateur' },
+          { color: '#22c55e', label: 'Shares', description: 'Partages réseau' },
+          { color: '#3b82f6', label: 'Web/HTTP', description: 'Services web' }
+        ]}
+        className="absolute top-4 right-4 z-20"
+      />
     </div>
   );
 };

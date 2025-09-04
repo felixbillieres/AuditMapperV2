@@ -62,6 +62,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
   const [newHashOpen, setNewHashOpen] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
 
+
   // Auto-actualiser la liste des connexions visuelles quand la sidebar s'ouvre
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -88,7 +89,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
   const handleSaveExploitationStep = (stepData: any) => {
     if (editingExploitationStep) {
       // Modifier une étape existante
-      const updatedSteps = selectedHost.exploitationSteps.map(step => 
+      const updatedSteps = (selectedHost.exploitationSteps || []).map(step => 
         step.id === editingExploitationStep.id 
           ? { ...stepData, id: editingExploitationStep.id }
           : step
@@ -101,7 +102,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
         id: Date.now().toString(),
       };
       handleUpdateHost(selectedHost.id, { 
-        exploitationSteps: [...selectedHost.exploitationSteps, newStep]
+        exploitationSteps: [...(selectedHost.exploitationSteps || []), newStep]
       });
     }
     setEditingExploitationStep(null);
@@ -109,7 +110,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
   };
 
   const handleDeleteExploitationStep = (stepId: string) => {
-    const updatedSteps = selectedHost.exploitationSteps.filter(step => step.id !== stepId);
+    const updatedSteps = (selectedHost.exploitationSteps || []).filter(step => step.id !== stepId);
     handleUpdateHost(selectedHost.id, { exploitationSteps: updatedSteps });
   };
 
@@ -576,7 +577,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                           <div>
                             <h3 className="text-lg font-semibold text-slate-100">Credentials collectés</h3>
                             <p className="text-sm text-slate-400">
-                              {selectedHost.usernames.length + selectedHost.passwords.length + selectedHost.hashes.length} éléments au total
+                              {(selectedHost.usernames?.length || 0) + (selectedHost.passwords?.length || 0) + (selectedHost.hashes?.length || 0)} éléments au total
                             </p>
                           </div>
                         </div>
@@ -588,11 +589,13 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-slate-100 text-sm">👤 Usernames ({selectedHost.usernames.length})</CardTitle>
+                        <CardTitle className="text-slate-100 text-sm">👤 Usernames ({selectedHost.usernames?.length || 0})</CardTitle>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { setNewUserOpen(true); }}
+                          onClick={() => { 
+                            setNewUserOpen(true); 
+                          }}
                           className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                         >
                           <Plus className="w-3 h-3" />
@@ -600,10 +603,10 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2 max-h-40 overflow-y-auto">
-                      {selectedHost.usernames.length === 0 ? (
+                      {(selectedHost.usernames?.length || 0) === 0 ? (
                         <p className="text-slate-500 text-sm italic">Aucun username collecté</p>
                       ) : (
-                        selectedHost.usernames.map((username, index) => (
+                        (selectedHost.usernames || []).map((username, index) => (
                           <div key={index} className="flex items-center gap-2 p-2 bg-slate-700/50 rounded">
                             <code className="flex-1 text-sm text-green-400 font-mono">{username}</code>
                             <Button
@@ -618,7 +621,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                const newUsernames = selectedHost.usernames.filter((_, i) => i !== index);
+                                const newUsernames = (selectedHost.usernames || []).filter((_, i) => i !== index);
                                 handleUpdateHost(selectedHost.id, { usernames: newUsernames });
                               }}
                               className="bg-red-600 hover:bg-red-700 text-white p-1"
@@ -635,11 +638,13 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-slate-100 text-sm">🔑 Passwords ({selectedHost.passwords.length})</CardTitle>
+                        <CardTitle className="text-slate-100 text-sm">🔑 Passwords ({selectedHost.passwords?.length || 0})</CardTitle>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { setNewPassOpen(true); }}
+                          onClick={() => { 
+                            setNewPassOpen(true); 
+                          }}
                           className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                         >
                           <Plus className="w-3 h-3" />
@@ -650,10 +655,10 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                       <div className="flex items-center gap-2 text-xs text-slate-400">
                         <label className="flex items-center gap-2"><input type="checkbox" checked={showPasswords} onChange={(e)=>setShowPasswords(e.target.checked)} /> Afficher les mots de passe</label>
                       </div>
-                      {selectedHost.passwords.length === 0 ? (
+                      {(selectedHost.passwords?.length || 0) === 0 ? (
                         <p className="text-slate-500 text-sm italic">Aucun password collecté</p>
                       ) : (
-                        selectedHost.passwords.map((password, index) => (
+                        (selectedHost.passwords || []).map((password, index) => (
                           <div key={index} className="flex items-center gap-2 p-2 bg-slate-700/50 rounded">
                             <code className="flex-1 text-sm text-yellow-400 font-mono break-words">{showPasswords ? password : '•'.repeat(password.length)}</code>
                             <Button
@@ -668,7 +673,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                const newPasswords = selectedHost.passwords.filter((_, i) => i !== index);
+                                const newPasswords = (selectedHost.passwords || []).filter((_, i) => i !== index);
                                 handleUpdateHost(selectedHost.id, { passwords: newPasswords });
                               }}
                               className="bg-red-600 hover:bg-red-700 text-white p-1"
@@ -685,11 +690,13 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-slate-100 text-sm">🔐 Hashes ({selectedHost.hashes.length})</CardTitle>
+                        <CardTitle className="text-slate-100 text-sm">🔐 Hashes ({selectedHost.hashes?.length || 0})</CardTitle>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { setNewHashOpen(true); }}
+                          onClick={() => { 
+                            setNewHashOpen(true); 
+                          }}
                           className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                         >
                           <Plus className="w-3 h-3" />
@@ -697,10 +704,10 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2 max-h-40 overflow-y-auto">
-                      {selectedHost.hashes.length === 0 ? (
+                      {(selectedHost.hashes?.length || 0) === 0 ? (
                         <p className="text-slate-500 text-sm italic">Aucun hash collecté</p>
                       ) : (
-                        selectedHost.hashes.map((hash, index) => (
+                        (selectedHost.hashes || []).map((hash, index) => (
                           <div key={index} className="flex items-center gap-2 p-2 bg-slate-700/50 rounded">
                             <code className="flex-1 text-sm text-orange-400 font-mono truncate">{hash}</code>
                             <Button
@@ -715,7 +722,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                const newHashes = selectedHost.hashes.filter((_, i) => i !== index);
+                                const newHashes = (selectedHost.hashes || []).filter((_, i) => i !== index);
                                 handleUpdateHost(selectedHost.id, { hashes: newHashes });
                               }}
                               className="bg-red-600 hover:bg-red-700 text-white p-1"
@@ -817,7 +824,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                                   size="sm"
                                   onClick={() => {
                                     if (index === 0) return;
-                                    const steps = [...selectedHost.exploitationSteps];
+                                    const steps = [...(selectedHost.exploitationSteps || [])];
                                     const tmp = steps[index - 1];
                                     steps[index - 1] = steps[index];
                                     steps[index] = tmp;
@@ -832,7 +839,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => {
-                                    const steps = [...selectedHost.exploitationSteps];
+                                    const steps = [...(selectedHost.exploitationSteps || [])];
                                     if (index >= steps.length - 1) return;
                                     const tmp = steps[index + 1];
                                     steps[index + 1] = steps[index];
@@ -964,27 +971,43 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
         onCancel={() => setConfirmRemoveAllConnsOpen(false)}
       />
 
+      {/* Input Dialogs for Credentials */}
       <InputDialog
         open={newUserOpen}
         title="Ajouter un username"
         placeholder="username"
-        onCancel={()=>setNewUserOpen(false)}
-        onConfirm={(val)=>{ handleUpdateHost(selectedHost.id,{ usernames:[...selectedHost.usernames, val]}); setNewUserOpen(false); }}
+        onCancel={()=>{
+          setNewUserOpen(false);
+        }}
+        onConfirm={(val)=>{ 
+          handleUpdateHost(selectedHost.id,{ usernames:[...(selectedHost.usernames || []), val]}); 
+          setNewUserOpen(false); 
+        }}
       />
       <InputDialog
         open={newPassOpen}
         title="Ajouter un password"
         placeholder="password"
         type="text"
-        onCancel={()=>setNewPassOpen(false)}
-        onConfirm={(val)=>{ handleUpdateHost(selectedHost.id,{ passwords:[...selectedHost.passwords, val]}); setNewPassOpen(false); }}
+        onCancel={()=>{
+          setNewPassOpen(false);
+        }}
+        onConfirm={(val)=>{ 
+          handleUpdateHost(selectedHost.id,{ passwords:[...(selectedHost.passwords || []), val]}); 
+          setNewPassOpen(false); 
+        }}
       />
       <InputDialog
         open={newHashOpen}
         title="Ajouter un hash"
         placeholder="hash"
-        onCancel={()=>setNewHashOpen(false)}
-        onConfirm={(val)=>{ handleUpdateHost(selectedHost.id,{ hashes:[...selectedHost.hashes, val]}); setNewHashOpen(false); }}
+        onCancel={()=>{
+          setNewHashOpen(false);
+        }}
+        onConfirm={(val)=>{ 
+          handleUpdateHost(selectedHost.id,{ hashes:[...(selectedHost.hashes || []), val]}); 
+          setNewHashOpen(false); 
+        }}
       />
     </motion.div>
   );
