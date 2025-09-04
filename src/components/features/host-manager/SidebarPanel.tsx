@@ -9,11 +9,9 @@ import {
   Shield, 
   Target, 
   FileText, 
-  Camera,
   ChevronRight,
   ChevronLeft,
   Network,
-  CheckCircle,
   Maximize2
 } from 'lucide-react';
 import { NotesEditor } from './NotesEditor';
@@ -36,6 +34,7 @@ interface SidebarPanelProps {
   onUpdateHost: (host: Host) => void;
   isExpanded?: boolean;
   onExpandChange?: (expanded: boolean) => void;
+  onOpenExpandedModal?: () => void;
 }
 
 export const SidebarPanel: React.FC<SidebarPanelProps> = ({
@@ -44,10 +43,12 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
   onUpdateHost,
   isExpanded = false,
   onExpandChange,
+  onOpenExpandedModal,
 }) => {
   const { updateHost, hosts, categories } = useHostStore();
   // selectedHost vient maintenant directement des props
   const [activeTab, setActiveTab] = useState<'overview' | 'credentials' | 'exploitation' | 'notes' | 'screenshots'>('overview');
+
   const [showNotesEditor, setShowNotesEditor] = useState(false);
   const [showExploitationModal, setShowExploitationModal] = useState(false);
   const [editingExploitationStep, setEditingExploitationStep] = useState<any>(null);
@@ -129,6 +130,15 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenExpandedModal?.()}
+            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+            title="Ouvrir en mode agrandi"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </Button>
           <Button
             variant="outline"
             size="sm"

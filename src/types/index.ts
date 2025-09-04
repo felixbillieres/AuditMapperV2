@@ -11,12 +11,20 @@ export interface NetworkConnection {
   timestamp: string;
 }
 
+export interface HostConnection {
+  id: string;
+  targetHost: string;
+  type: 'lateral' | 'pivot' | 'tunnel' | 'proxy' | 'relay';
+  description?: string;
+  timestamp: string;
+}
+
 export interface Host {
   id: string;
   ip: string;
   hostname?: string;
   os?: string;
-  status: 'active' | 'inactive' | 'compromised';
+  status: 'up' | 'down' | 'unknown' | 'active' | 'inactive' | 'compromised';
   priority: 'low' | 'medium' | 'high' | 'critical';
   compromiseLevel: 'none' | 'initial' | 'partial' | 'full';
   category?: string;
@@ -35,6 +43,7 @@ export interface Host {
   screenshots: Screenshot[];
   outgoingConnections?: NetworkConnection[];
   incomingConnections?: NetworkConnection[];
+  connections?: HostConnection[];
   discoveredAt?: string;
   lastSeen?: string;
   createdAt: string;

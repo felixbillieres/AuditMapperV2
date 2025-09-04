@@ -33,6 +33,7 @@ import NetworkVisualization from './NetworkVisualization';
 import ClassicVisualization from './ClassicVisualization';
 import KillchainVisualization from './KillchainVisualization';
 import { StatsModal } from './StatsModal';
+import { ExpandedHostModal } from './ExpandedHostModal';
 import { useHostStore } from '@/stores/hostStore';
 import { Host } from '@/types';
 import InfoModal from '@/components/ui/InfoModal';
@@ -63,6 +64,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [about, setAbout] = useState(false);
   const [bulkParserOpen, setBulkParserOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
+  const [showExpandedModal, setShowExpandedModal] = useState(false);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[]>([]);
   const [statsModalOpen, setStatsModalOpen] = useState(false);
@@ -99,6 +101,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const handleHostSelect = (host: Host) => {
     setSelectedHost(host);
     setShowSidebar(true);
+  };
+
+  const handleOpenExpandedModal = () => {
+    setShowExpandedModal(true);
   };
 
   const handleCloseSidebar = () => {
@@ -1109,6 +1115,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   onUpdateHost={handleUpdateHost}
                   isExpanded={sidebarExpanded}
                   onExpandChange={setSidebarExpanded}
+                  onOpenExpandedModal={handleOpenExpandedModal}
                 />
               </div>
             )}
@@ -1336,6 +1343,16 @@ export const HostManager: React.FC<HostManagerProps> = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Agrandi */}
+      {showExpandedModal && selectedHost && (
+        <ExpandedHostModal
+          selectedHost={selectedHost}
+          isOpen={showExpandedModal}
+          onClose={() => setShowExpandedModal(false)}
+          onUpdateHost={handleUpdateHost}
+        />
       )}
     </div>
   );
