@@ -39,12 +39,17 @@ interface ExpandedHostModalProps {
 }
 
 export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
-  selectedHost,
+  currentHost: selectedHost,
   isOpen,
   onClose,
   onUpdateHost,
 }) => {
   const { updateHost, hosts, categories } = useHostStore();
+  
+  // Vérification de sécurité
+  if (!selectedHost || !isOpen) {
+    return null;
+  }
   
   // Utiliser les données du store pour s'assurer d'avoir les dernières données
   const currentHost = hosts[selectedHost.id] || selectedHost;
@@ -295,12 +300,14 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 p-4"
+      onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         className="w-full max-w-7xl h-[95vh] rounded-lg border border-slate-700 bg-slate-900 shadow-2xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header du modal */}
         <div className="p-6 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-900 z-10">

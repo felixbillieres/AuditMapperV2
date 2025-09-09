@@ -12,8 +12,16 @@ interface InfoModalProps {
 export const InfoModal: React.FC<InfoModalProps> = ({ open, onClose, title, children }) => {
   if (!open) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-3xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" 
+      role="dialog" 
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div 
+        className="w-full max-w-3xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-slate-700 px-4 py-3">
           <div className="text-slate-100 font-semibold">{title}</div>
           <button className="rounded bg-slate-800 px-2 py-1 text-slate-200 hover:bg-slate-700" onClick={onClose} aria-label="Fermer">✖</button>

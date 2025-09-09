@@ -203,6 +203,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4"
+        onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.98, opacity: 0 }}
@@ -211,6 +212,7 @@ export const NotesEditor: React.FC<NotesEditorProps> = ({
           className={`bg-slate-900 overflow-hidden flex flex-col border border-slate-700 rounded-lg ${
             isFullscreen ? 'h-full w-full rounded-none' : 'h-[85vh] w-[85vw] max-w-6xl max-h-[800px]'
           }`}
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/90 backdrop-blur-md">

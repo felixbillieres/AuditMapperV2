@@ -91,6 +91,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [bulkCategoryId, setBulkCategoryId] = useState<string>('');
   const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[]>([]);
   const [statsModalOpen, setStatsModalOpen] = useState(false);
+  const [statsModalType, setStatsModalType] = useState<'total' | 'active' | 'compromised' | 'critical' | 'credentials' | 'exploitation'>('total');
+  const [migrateInfoOpen, setMigrateInfoOpen] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { ensureUniqueCategoryIds(); }, [ensureUniqueCategoryIds]);
 
@@ -113,8 +115,9 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const hostsArray = useMemo(() => {
     const allHosts = Object.values(hosts);
     if (!currentProject) {
-      return allHosts; // Show all hosts if no project selected
+      return []; // Ne montrer aucun host si aucun projet n'est sélectionné
     }
+    // Filtrer strictement par projet - ne pas migrer automatiquement
     return allHosts.filter(host => host.projectId === currentProject.id);
   }, [hosts, currentProject]);
 
@@ -147,7 +150,9 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   };
 
   const handleOpenExpandedModal = () => {
-    setShowExpandedModal(true);
+    if (selectedHost) {
+      setShowExpandedModal(true);
+    }
   };
 
   const handleNodeClickInFullscreen = (host: Host) => {
@@ -325,6 +330,29 @@ export const HostManager: React.FC<HostManagerProps> = () => {
     setBulkPreview(parsed);
   };
 
+  // Fonction pour migrer les hosts existants vers le projet actuel
+  const migrateExistingHosts = () => {
+    if (!currentProject) {
+      alert('Veuillez sélectionner un projet avant de migrer les hosts');
+      return;
+    }
+    
+    const allHosts = Object.values(hosts);
+    const hostsWithoutProject = allHosts.filter(host => !host.projectId);
+    
+    if (hostsWithoutProject.length === 0) {
+      alert('Aucun host sans projet trouvé');
+      return;
+    }
+    
+    if (confirm(`Migrer ${hostsWithoutProject.length} host(s) vers le projet "${currentProject.name}" ?`)) {
+      hostsWithoutProject.forEach(host => {
+        updateHost(host.id, { projectId: currentProject.id });
+      });
+      alert(`${hostsWithoutProject.length} host(s) migré(s) avec succès !`);
+    }
+  };
+
   return (
     <div className="app-layout">
       {/* Header */}
@@ -366,6 +394,26 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               <Upload className="w-4 h-4 mr-2" />
               Import/Export
             </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                onClick={migrateExistingHosts}
+                className="bg-orange-700 border-orange-600 text-orange-200 hover:bg-orange-600"
+                title="Migrer les hosts existants vers le projet actuel"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Migrer Hosts
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMigrateInfoOpen(true)}
+                className="text-orange-400 hover:text-orange-300 hover:bg-orange-900/20 p-1"
+                title="Informations sur la migration des hosts"
+              >
+                <Info className="w-4 h-4" />
+              </Button>
+            </div>
             <Button
               variant="default"
               onClick={() => {
@@ -419,7 +467,14 @@ export const HostManager: React.FC<HostManagerProps> = () => {
 
         {/* Statistics Cards - Compact for laptops */}
         {currentProject ? (
-          <ProjectStats hosts={hostsArray} className="mb-4" />
+          <ProjectStats 
+            hosts={hostsArray} 
+            className="mb-4" 
+            onStatClick={(type) => {
+              setStatsModalType(type);
+              setStatsModalOpen(true);
+            }}
+          />
         ) : (
           <div className="mb-4 p-4 bg-slate-800/50 border border-slate-600 rounded-lg">
             <div className="flex items-center gap-3">
@@ -484,8 +539,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
           </ul>
           <h4 className="text-slate-100 font-semibold">Relations (nodes/edges)</h4>
           <ul className="list-disc ml-5 space-y-1">
-            <li><strong>Nœuds</strong>: chaque host devient un nœud; style déduit du type (routeur/serveur/workstation...) et d’indicateurs (vulns, creds).</li>
-            <li><strong>Arêtes</strong>: construites depuis `host.outgoingConnections[]` où chaque entrée contient `toHostId` et `cause` (étiquetage de l’arête). La suppression d’une arête met à jour le store source.</li>
+            <li><strong>Nœuds</strong>: chaque host devient un nœud; style déduit du type (routeur/serveur/workstation...) et d'indicateurs (vulns, creds).</li>
+            <li><strong>Arêtes</strong>: construites depuis `host.outgoingConnections[]` où chaque entrée contient `toHostId` et `cause` (étiquetage de l'arête). La suppression d'une arête met à jour le store source.</li>
             <li><strong>Sélection</strong>: clic sur un nœud → ouverture de la sidebar liée au host pour édition immédiate.</li>
           </ul>
           <h4 className="text-slate-100 font-semibold">Traitement et vues</h4>
@@ -496,11 +551,51 @@ export const HostManager: React.FC<HostManagerProps> = () => {
           </ul>
           <h4 className="text-slate-100 font-semibold">Import / Export</h4>
           <ul className="list-disc ml-5 space-y-1">
-            <li><strong>Export</strong>: serialisation JSON de l’état (`hosts` + `categories` + positions) via le panneau Import/Export.</li>
+            <li><strong>Export</strong>: serialisation JSON de l'état (`hosts` + `categories` + positions) via le panneau Import/Export.</li>
             <li><strong>Import</strong>: injection contrôlée dans le store; les connexions réseau (`outgoingConnections`) et les positions sont restaurées.</li>
           </ul>
           <h4 className="text-slate-100 font-semibold">Stack</h4>
-          <p className="text-slate-300">React + Zustand + Tailwind. Visualisation réseau avec vis-network; interactions (drag, zoom, suppression d’arêtes) synchronisées avec le store. Aucun backend requis.</p>
+          <p className="text-slate-300">React + Zustand + Tailwind. Visualisation réseau avec vis-network; interactions (drag, zoom, suppression d'arêtes) synchronisées avec le store. Aucun backend requis.</p>
+        </div>
+      </InfoModal>
+
+      <InfoModal open={migrateInfoOpen} onClose={() => setMigrateInfoOpen(false)} title="Migration des Hosts">
+        <div className="space-y-4">
+          <div className="p-4 bg-orange-900/20 border border-orange-700/50 rounded-lg">
+            <h4 className="text-orange-200 font-semibold mb-2 flex items-center gap-2">
+              <RefreshCw className="w-4 h-4" />
+              À quoi sert la migration ?
+            </h4>
+            <p className="text-slate-300 text-sm">
+              Cette fonctionnalité permet de déplacer des hosts existants qui n'ont pas de projet assigné vers le projet actuellement sélectionné.
+            </p>
+          </div>
+          
+          <div>
+            <h4 className="text-slate-100 font-semibold mb-2">Quand utiliser cette fonction ?</h4>
+            <ul className="list-disc ml-5 space-y-1 text-sm text-slate-300">
+              <li>Vous avez des hosts créés avant l'implémentation du système de projets</li>
+              <li>Vous voulez organiser des hosts existants dans un nouveau projet</li>
+              <li>Vous avez importé des données qui n'avaient pas de projet assigné</li>
+              <li>Vous voulez regrouper des hosts dispersés dans un projet cohérent</li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="text-slate-100 font-semibold mb-2">Comment ça fonctionne ?</h4>
+            <ol className="list-decimal ml-5 space-y-1 text-sm text-slate-300">
+              <li>Le système identifie tous les hosts sans <code className="bg-slate-700 px-1 rounded">projectId</code></li>
+              <li>Une confirmation vous demande si vous voulez migrer ces hosts</li>
+              <li>Si confirmé, tous les hosts identifiés sont assignés au projet actuel</li>
+              <li>Les hosts migrés apparaîtront immédiatement dans la vue du projet</li>
+            </ol>
+          </div>
+
+          <div className="p-3 bg-slate-800/50 border border-slate-600 rounded">
+            <p className="text-xs text-slate-400">
+              <strong>Note :</strong> Cette action est irréversible. Assurez-vous que le bon projet est sélectionné avant de confirmer la migration.
+            </p>
+          </div>
         </div>
       </InfoModal>
 
@@ -1010,7 +1105,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
           <StatsModal
             isOpen={statsModalOpen}
             onClose={() => setStatsModalOpen(false)}
-            type="total"
+            type={statsModalType}
             hosts={hostsArray}
             stats={stats}
           />
@@ -1071,8 +1166,14 @@ export const HostManager: React.FC<HostManagerProps> = () => {
       </AnimatePresence>
       {/* Bulk Parser Modal */}
       {bulkParserOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-5xl h-[80vh] md:h-[75vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col">
+        <div 
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setBulkParserOpen(false)}
+        >
+          <div 
+            className="w-full max-w-5xl h-[80vh] md:h-[75vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-900 z-10">
               <div className="text-slate-100 font-semibold">Parseur de Hosts (Nmap / NetExec / Fping)</div>
               <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={()=>setBulkParserOpen(false)}>Fermer</Button>
@@ -1219,7 +1320,10 @@ export const HostManager: React.FC<HostManagerProps> = () => {
         <ExpandedHostModal
           currentHost={selectedHost}
           isOpen={showExpandedModal}
-          onClose={() => setShowExpandedModal(false)}
+          onClose={() => {
+            setShowExpandedModal(false);
+            setSelectedHost(null);
+          }}
           onUpdateHost={handleUpdateHost}
         />
       )}

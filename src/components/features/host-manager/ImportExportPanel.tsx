@@ -178,21 +178,21 @@ export const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   };
 
   // Générer un rapport exécutif
-  const generateExecutiveReport = () => {
-    const totalHosts = hostsArray.length;
-    const compromisedHosts = hostsArray.filter((h: any) => h.status === 'compromised').length;
-    const activeHosts = hostsArray.filter((h: any) => h.status === 'active').length;
-    const totalCredentials = hostsArray.reduce((acc: number, h: any) => acc + (h.credentials?.length || 0), 0);
-    const totalVulnerabilities = hostsArray.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
+  const generateExecutiveReport = (hostsForReport: any[] = hostsArray, categoriesForReport: any[] = categories) => {
+    const totalHosts = hostsForReport.length;
+    const compromisedHosts = hostsForReport.filter((h: any) => h.status === 'compromised').length;
+    const activeHosts = hostsForReport.filter((h: any) => h.status === 'active').length;
+    const totalCredentials = hostsForReport.reduce((acc: number, h: any) => acc + (h.credentials?.length || 0), 0);
+    const totalVulnerabilities = hostsForReport.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
     
-          const categoriesByHost = categories.map(cat => {
-        const hostsInCategory = hostsArray.filter((h: any) => h.category === cat.id);
-        return {
-          name: cat.name,
-          count: hostsInCategory.length,
-          compromised: hostsInCategory.filter((h: any) => h.status === 'compromised').length
-        };
-      });
+    const categoriesByHost = categoriesForReport.map(cat => {
+      const hostsInCategory = hostsForReport.filter((h: any) => h.category === cat.id);
+      return {
+        name: cat.name,
+        count: hostsInCategory.length,
+        compromised: hostsInCategory.filter((h: any) => h.status === 'compromised').length
+      };
+    });
 
     return `
 # RAPPORT EXÉCUTIF - AUDIT DE SÉCURITÉ
@@ -224,9 +224,9 @@ ${categoriesByHost.map(cat =>
   };
 
   // Générer un rapport technique détaillé
-  const generateTechnicalReport = () => {
-    const hostsByCategory = categories.map(cat => {
-      const hostsInCategory = hostsArray.filter((h: any) => h.category === cat.id);
+  const generateTechnicalReport = (hostsForReport: any[] = hostsArray, categoriesForReport: any[] = categories) => {
+    const hostsByCategory = categoriesForReport.map(cat => {
+      const hostsInCategory = hostsForReport.filter((h: any) => h.category === cat.id);
       return {
         category: cat,
         hosts: hostsInCategory
@@ -277,7 +277,7 @@ ${host.notes}
 `).join('\n')}
 
 ## 🌐 Topologie réseau
-${hostsArray.filter((h: any) => h.outgoingConnections?.length > 0 || h.incomingConnections?.length > 0).map((host: any) => `
+${hostsForReport.filter((h: any) => h.outgoingConnections?.length > 0 || h.incomingConnections?.length > 0).map((host: any) => `
 **${host.hostname || host.ip}** (${host.ip})
 ${host.outgoingConnections?.map((conn: any) => `  → ${conn.toHostId}${conn.cause ? ` (${conn.cause})` : ''}`).join('\n') || '  Aucune connexion sortante'}
 `).join('\n')}
@@ -288,8 +288,8 @@ ${host.outgoingConnections?.map((conn: any) => `  → ${conn.toHostId}${conn.cau
   };
 
   // Générer un rapport des identifiants
-  const generateCredentialsReport = () => {
-    const allCredentials = hostsArray.flatMap((host: any) => 
+  const generateCredentialsReport = (hostsForReport: any[] = hostsArray) => {
+    const allCredentials = hostsForReport.flatMap((host: any) => 
       (host.credentials || []).map((cred: any) => ({
         ...cred,
         host: host.hostname || host.ip,
@@ -338,8 +338,8 @@ ${credsArray.map((cred: any) => `
   };
 
   // Générer un rapport des vulnérabilités
-  const generateVulnerabilitiesReport = () => {
-    const allVulnerabilities = hostsArray.flatMap((host: any) => 
+  const generateVulnerabilitiesReport = (hostsForReport: any[] = hostsArray) => {
+    const allVulnerabilities = hostsForReport.flatMap((host: any) => 
       (host.vulnerabilities || []).map((vuln: any) => ({
         ...vuln,
         host: host.hostname || host.ip,
@@ -448,7 +448,7 @@ ${hostsArray.filter((h: any) => h.status === 'compromised').map((host: any) => `
           acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
         );
         const totalCredentials = projectHosts.reduce((acc: number, h: any) => 
-          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
+          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0) + (h.credentials?.length || 0), 0);
         const totalVulnerabilities = projectHosts.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
 
         exportData = {
@@ -480,11 +480,19 @@ ${hostsArray.filter((h: any) => h.status === 'compromised').map((host: any) => `
         const allSelectedHosts = selectedProjectsData.flatMap(data => Object.values(data.hosts));
         const allSelectedCategories = selectedProjectsData.flatMap(data => data.categories);
         
+        // Dédupliquer les catégories par ID pour éviter les doublons
+        const uniqueCategories = allSelectedCategories.reduce((acc: any[], cat: any) => {
+          if (!acc.find(existing => existing.id === cat.id)) {
+            acc.push(cat);
+          }
+          return acc;
+        }, []);
+        
         const totalConnections = allSelectedHosts.reduce((acc: number, h: any) => 
           acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
         );
         const totalCredentials = allSelectedHosts.reduce((acc: number, h: any) => 
-          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
+          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0) + (h.credentials?.length || 0), 0);
         const totalVulnerabilities = allSelectedHosts.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
 
         exportData = {
@@ -492,14 +500,14 @@ ${hostsArray.filter((h: any) => h.status === 'compromised').map((host: any) => `
             exportedAt: new Date().toISOString(),
             version: '2.0.0',
             totalHosts: allSelectedHosts.length,
-            totalCategories: allSelectedCategories.length,
+            totalCategories: uniqueCategories.length,
             totalConnections,
             totalCredentials,
             totalVulnerabilities,
             selectedProjects: selectedProjects
           },
           hosts: allSelectedHosts,
-          categories: allSelectedCategories,
+          categories: uniqueCategories,
           networkNodes: selectedProjectsData.reduce((acc, data) => ({ ...acc, ...data.networkNodes }), {}),
           reports: {
             executive: generateExecutiveReport(),
@@ -515,7 +523,7 @@ ${hostsArray.filter((h: any) => h.status === 'compromised').map((host: any) => `
           acc + (h.outgoingConnections?.length || 0) + (h.incomingConnections?.length || 0), 0
         );
         const totalCredentials = hostsArray.reduce((acc: number, h: any) => 
-          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0), 0);
+          acc + (h.usernames?.length || 0) + (h.passwords?.length || 0) + (h.hashes?.length || 0) + (h.credentials?.length || 0), 0);
         const totalVulnerabilities = hostsArray.reduce((acc: number, h: any) => acc + (h.vulnerabilities?.length || 0), 0);
 
         exportData = {
@@ -860,6 +868,9 @@ ${exportData.reports.network}
         const categoriesToImport = Array.isArray(importPreview.categories) ? importPreview.categories : 
                                   importPreview.categories ? Object.values(importPreview.categories) : [];
         
+        // Créer un mapping temporaire pour éviter les doublons
+        const tempCategoryMappings: Record<string, string> = {};
+        
         categoriesToImport.forEach((category: any) => {
           try {
             const oldId = category.id;
@@ -879,8 +890,15 @@ ${exportData.reports.network}
               if (existingCategory) {
                 console.log(`Catégorie "${categoryToAdd.name}" existe déjà, réutilisation de l'ID ${existingCategory.id}`);
                 categoryMappings[oldId] = existingCategory.id;
+                tempCategoryMappings[oldId] = existingCategory.id;
                 return; // Skip creation, use existing
               }
+            }
+            
+            // Vérifier si on a déjà traité cette catégorie dans cette session d'import
+            if (tempCategoryMappings[oldId]) {
+              categoryMappings[oldId] = tempCategoryMappings[oldId];
+              return;
             }
             
             addCategory({
@@ -893,9 +911,15 @@ ${exportData.reports.network}
             // Récupérer l'ID nouvellement créé
             // Note: Le store utilise des IDs générés automatiquement, donc on doit les récupérer après création
             const newCategories = useHostStore.getState().categories;
-            const newCategory = newCategories.find(cat => cat.name === categoryToAdd.name);
+            const newCategory = newCategories.find(cat => 
+              cat.name === categoryToAdd.name && 
+              !Object.values(categoryMappings).includes(cat.id) &&
+              !Object.values(tempCategoryMappings).includes(cat.id)
+            );
+            
             if (newCategory && oldId) {
               categoryMappings[oldId] = newCategory.id;
+              tempCategoryMappings[oldId] = newCategory.id;
               console.log(`Mapping catégorie: ${oldId} -> ${newCategory.id} (${categoryToAdd.name})`);
             }
             
@@ -914,6 +938,9 @@ ${exportData.reports.network}
         // S'assurer que importPreview.hosts est un tableau
         const hostsToImport = Array.isArray(importPreview.hosts) ? importPreview.hosts : 
                              importPreview.hosts ? Object.values(importPreview.hosts) : [];
+        
+        // Récupérer le projet actuel pour l'assignation
+        const currentProject = getCurrentProject();
         
         hostsToImport.forEach((host: any) => {
           try {
@@ -936,6 +963,14 @@ ${exportData.reports.network}
               mappedCategory = currentCategories.length > 0 ? currentCategories[0].id : '';
             }
             
+            // Gérer l'assignation du projet
+            let projectId = host.projectId;
+            if (!projectId && currentProject) {
+              // Si pas de projectId dans les données importées, assigner au projet actuel
+              projectId = currentProject.id;
+              console.log(`Host ${host.ip}: Assignation au projet actuel ${currentProject.name}`);
+            }
+            
             // S'assurer que l'hôte a un ID unique et tous les champs requis
             const hostToAdd = {
               ip: host.ip || '0.0.0.0',
@@ -945,6 +980,7 @@ ${exportData.reports.network}
               priority: host.priority || 'medium',
               compromiseLevel: host.compromiseLevel || 'none',
               category: mappedCategory,
+              projectId: projectId, // Assigner le projectId
               usernames: host.usernames || [],
               passwords: host.passwords || [],
               hashes: host.hashes || [],
@@ -958,9 +994,16 @@ ${exportData.reports.network}
               incomingConnections: host.incomingConnections || [],
               notes: host.notes || '',
               credentials: host.credentials || [],
+              // Préserver tous les autres champs de l'hôte original
               ...host,
-              id: host.id || Date.now().toString() + Math.random().toString(36).substr(2, 9)
+              // S'assurer que l'ID est unique
+              id: host.id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              // Mettre à jour les timestamps
+              createdAt: host.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             };
+            
+            console.log(`Import host ${host.ip}: catégorie=${mappedCategory}, projet=${projectId}`);
             addHost(hostToAdd);
             importedCount++;
           } catch (error) {
@@ -1011,12 +1054,16 @@ ${exportData.reports.network}
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         className="w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
         <Card className="h-full border-slate-700 bg-slate-800">
           <CardHeader className="border-b border-slate-700">

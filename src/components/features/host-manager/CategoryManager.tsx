@@ -118,12 +118,16 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({
 
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         className="w-full max-w-4xl max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
         <Card className="h-full border-slate-700 bg-slate-800">
           <CardHeader className="border-b border-slate-700">

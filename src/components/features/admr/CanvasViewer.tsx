@@ -11,6 +11,9 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github-dark.css';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 
 type CanvasNode = {
@@ -113,7 +116,12 @@ function transformObsidian(text?: string): string {
     .replace(/\[!?\s*example\]\s*([^\n]+)/gi, '🧪 $1')
     .replace(/\[!?\s*warning\]\s*([^\n]+)/gi, '⚠️ $1')
     .replace(/\[!?\s*tip\]\s*([^\n]+)/gi, '💡 $1')
-    .replace(/\[!?\s*note\]\s*([^\n]+)/gi, '📝 $1');
+    .replace(/\[!?\s*note\]\s*([^\n]+)/gi, '📝 $1')
+    .replace(/\[!?\s*command\]\s*([^\n]+)/gi, '💻 $1')
+    .replace(/\[!?\s*link\]\s*([^\n]+)/gi, '🔗 $1')
+    .replace(/\[!?\s*important\]\s*([^\n]+)/gi, '⭐ $1')
+    .replace(/\[!?\s*check\]\s*([^\n]+)/gi, '✅ $1')
+    .replace(/\[!?\s*cross\]\s*([^\n]+)/gi, '❌ $1');
 }
 
 const TextNode: React.FC<{ data: { text?: string; width?: number; height?: number } }>
@@ -126,14 +134,16 @@ const TextNode: React.FC<{ data: { text?: string; width?: number; height?: numbe
         style={{ width: width ?? undefined, height: height ?? undefined, overflow: 'auto', wordBreak: 'break-word' }}
       >
         <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
           components={{
             h1: ({ children }) => (
-              <h1 className="text-2xl font-extrabold underline underline-offset-4 decoration-sky-400 mb-2">
+              <h1 className="text-2xl font-extrabold underline underline-offset-4 decoration-sky-400 mb-3">
                 {children}
               </h1>
             ),
             h2: ({ children }) => (
-              <h2 className="text-xl font-bold underline underline-offset-4 decoration-slate-500 mb-2">
+              <h2 className="text-xl font-bold underline underline-offset-4 decoration-slate-500 mb-3">
                 {children}
               </h2>
             ),
@@ -142,26 +152,106 @@ const TextNode: React.FC<{ data: { text?: string; width?: number; height?: numbe
                 {children}
               </h3>
             ),
+            h4: ({ children }) => (
+              <h4 className="text-base font-semibold mb-2 text-blue-300">
+                {children}
+              </h4>
+            ),
+            p: ({ children }) => (
+              <p className="mb-2 leading-relaxed">
+                {children}
+              </p>
+            ),
             pre: ({ children }) => (
-              <pre className="bg-black/40 p-3 rounded-md overflow-auto">
+              <pre className="bg-slate-900/80 border border-slate-600 p-4 rounded-lg overflow-auto my-3 text-sm">
                 {children}
               </pre>
             ),
-            code: ({ inline, children }) => (
-              inline ? (
-                <code className="bg-black/30 px-1.5 py-1 rounded font-mono text-blue-300 text-[22px]">
+            code: ({ children, className }) => {
+              const match = /language-(\w+)/.exec(className || '');
+              const isInline = !match;
+              return isInline ? (
+                <code className="bg-slate-800 px-2 py-1 rounded font-mono text-blue-300 text-[20px] border border-slate-600">
                   {children}
                 </code>
               ) : (
-                <code className="font-mono text-[22px]">{children}</code>
-              )
-            ),
+                <code className={`font-mono text-sm ${className || ''}`}>
+                  {children}
+                </code>
+              );
+            },
             a: ({ children, href }) => (
-              <a href={href} target="_blank" rel="noreferrer" className="text-sky-300 underline">
+              <a 
+                href={href} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="text-sky-300 underline hover:text-sky-200 transition-colors"
+              >
                 {children}
               </a>
             ),
-            li: ({ children }) => <li className="ml-4 list-disc">{children}</li>,
+            ul: ({ children }) => (
+              <ul className="ml-4 mb-3 space-y-1">
+                {children}
+              </ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="ml-4 mb-3 space-y-1 list-decimal">
+                {children}
+              </ol>
+            ),
+            li: ({ children }) => (
+              <li className="list-disc marker:text-slate-400">
+                {children}
+              </li>
+            ),
+            blockquote: ({ children }) => (
+              <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-3 bg-slate-800/50 rounded-r">
+                {children}
+              </blockquote>
+            ),
+            table: ({ children }) => (
+              <div className="overflow-x-auto my-3">
+                <table className="min-w-full border border-slate-600 rounded-lg">
+                  {children}
+                </table>
+              </div>
+            ),
+            thead: ({ children }) => (
+              <thead className="bg-slate-800">
+                {children}
+              </thead>
+            ),
+            tbody: ({ children }) => (
+              <tbody className="bg-slate-900/50">
+                {children}
+              </tbody>
+            ),
+            tr: ({ children }) => (
+              <tr className="border-b border-slate-600">
+                {children}
+              </tr>
+            ),
+            th: ({ children }) => (
+              <th className="px-4 py-2 text-left font-semibold text-slate-200">
+                {children}
+              </th>
+            ),
+            td: ({ children }) => (
+              <td className="px-4 py-2 text-slate-300">
+                {children}
+              </td>
+            ),
+            strong: ({ children }) => (
+              <strong className="font-bold text-slate-100">
+                {children}
+              </strong>
+            ),
+            em: ({ children }) => (
+              <em className="italic text-slate-200">
+                {children}
+              </em>
+            ),
           }}
         >
           {processed}

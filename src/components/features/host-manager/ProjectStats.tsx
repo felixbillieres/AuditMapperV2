@@ -6,9 +6,10 @@ import { Host } from '@/types';
 interface ProjectStatsProps {
   hosts: Host[];
   className?: string;
+  onStatClick?: (type: 'total' | 'active' | 'compromised' | 'critical' | 'credentials' | 'exploitation') => void;
 }
 
-export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) => {
+export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className, onStatClick }) => {
   const stats = React.useMemo(() => ({
     total: hosts.length,
     active: hosts.filter(h => h.status === 'active').length,
@@ -20,7 +21,10 @@ export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) 
 
   return (
     <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 ${className}`}>
-      <Card className="stats-card">
+      <Card 
+        className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+        onClick={() => onStatClick?.('total')}
+      >
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <Server className="w-4 h-4 text-blue-400" />
@@ -31,7 +35,10 @@ export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) 
           </div>
         </CardContent>
       </Card>
-      <Card className="stats-card">
+      <Card 
+        className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+        onClick={() => onStatClick?.('active')}
+      >
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-green-400" />
@@ -42,7 +49,10 @@ export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) 
           </div>
         </CardContent>
       </Card>
-      <Card className="stats-card">
+      <Card 
+        className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+        onClick={() => onStatClick?.('compromised')}
+      >
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-orange-400" />
@@ -53,7 +63,10 @@ export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) 
           </div>
         </CardContent>
       </Card>
-      <Card className="stats-card">
+      <Card 
+        className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+        onClick={() => onStatClick?.('critical')}
+      >
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-red-400" />
@@ -64,7 +77,10 @@ export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) 
           </div>
         </CardContent>
       </Card>
-      <Card className="stats-card">
+      <Card 
+        className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+        onClick={() => onStatClick?.('credentials')}
+      >
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-purple-400" />
@@ -75,7 +91,10 @@ export const ProjectStats: React.FC<ProjectStatsProps> = ({ hosts, className }) 
           </div>
         </CardContent>
       </Card>
-      <Card className="stats-card">
+      <Card 
+        className="stats-card cursor-pointer hover:bg-slate-700/50 transition-colors" 
+        onClick={() => onStatClick?.('exploitation')}
+      >
         <CardContent className="p-2">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-orange-400" />

@@ -17,6 +17,22 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Settings,
+  Clock,
+  Target,
+  BarChart3,
+  FileText,
+  CheckSquare,
+  StickyNote,
+  Download,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Coffee,
+  Sun,
+  Moon,
+  Lightbulb
 } from 'lucide-react';
 
 import { useCallback } from 'react';
@@ -297,6 +313,12 @@ export const CalendarPage: React.FC = () => {
   const [newTicketColumnId, setNewTicketColumnId] = useState<number | null>(null);
   const [showTimerContent, setShowTimerContent] = useState(false);
   const [about, setAbout] = useState(false);
+  
+  // UI Layout states
+  const [activeSection, setActiveSection] = useState<'timer' | 'kanban' | 'tools'>('timer');
+  const [showTools, setShowTools] = useState(true);
+  const [showStats, setShowStats] = useState(true);
+  const [showPomodoroSettings, setShowPomodoroSettings] = useState(false);
   // Local draft pour la modale de ticket
   const [ticketDraft, setTicketDraft] = useState<{
     title: string;
@@ -634,63 +656,74 @@ export const CalendarPage: React.FC = () => {
   };
 
   return (
-    <div className="app-layout">
+    <div className="min-h-screen bg-slate-900">
       {/* Header */}
-      <div className="main-header p-6">
-        <div className="flex-between mb-6">
-          <div className="flex items-center gap-3">
+      <div className="bg-slate-800 border-b border-slate-700 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="AuditMapper" className="w-8 h-8 rounded-lg opacity-80" />
+              <img src="/logo.png" alt="AuditMapper" className="w-10 h-10 rounded-lg opacity-80" />
               <div>
-                <h1 className="text-2xl font-bold text-slate-100">Calendrier & Kanban</h1>
-                <p className="text-slate-400">Planifiez vos tâches de pentest et suivez le temps</p>
+                <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">
+                  <CalendarIcon className="w-8 h-8 text-blue-400" />
+                  Calendrier & Kanban
+                </h1>
+                <p className="text-slate-400 mt-1">Planifiez vos tâches de pentest et suivez le temps efficacement</p>
               </div>
             </div>
           </div>
-          {/* Global timer widget */}
-          <div className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-            <div className="flex items-center gap-2">
-              <TimerIcon className="w-4 h-4 text-slate-300" />
-              <span className="font-mono text-slate-100 text-sm min-w-[84px] text-center">{timeLeft}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {timer.isRunning ? (
+          
+          <div className="flex items-center gap-4">
+            {/* Global timer widget */}
+            <div className="flex items-center gap-3 bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-2">
+              <div className="flex items-center gap-2">
+                <TimerIcon className="w-5 h-5 text-blue-400" />
+                <span className="font-mono text-slate-100 text-lg min-w-[100px] text-center">{timeLeft}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {timer.isRunning ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={pauseTimer}
+                    className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 px-2"
+                    title="Pause"
+                  >
+                    <Pause className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resumeTimer}
+                    className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 px-2"
+                    title="Reprendre"
+                  >
+                    <Play className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={pauseTimer}
-                  className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 px-2"
-                  title="Pause"
+                  onClick={resetTimer}
+                  className="bg-red-600 border-red-500 text-red-200 hover:bg-red-500 px-2"
+                  title="Réinitialiser"
                 >
-                  <Pause className="w-3 h-3" />
+                  <RotateCcw className="w-4 h-4" />
                 </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resumeTimer}
-                  className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 px-2"
-                  title="Reprendre"
-                >
-                  <Play className="w-3 h-3" />
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetTimer}
-                className="bg-red-700 border-red-600 text-red-200 hover:bg-red-600 px-2"
-                title="Réinitialiser"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </Button>
+              </div>
             </div>
-          </div>
-          <div className="ml-3">
-            <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => setAbout(true)}>ℹ️ Comment ça marche</Button>
+            
+            <Button 
+              variant="outline" 
+              className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" 
+              onClick={() => setAbout(true)}
+            >
+              <Info className="w-4 h-4 mr-2" />
+              Comment ça marche
+            </Button>
           </div>
         </div>
-
       </div>
 
       <InfoModal open={about} onClose={() => setAbout(false)} title="Calendrier & Kanban – principes techniques">
@@ -701,130 +734,385 @@ export const CalendarPage: React.FC = () => {
         </ul>
       </InfoModal>
 
-      {/* Main content */}
-      <div className="main-content overflow-y-auto">
-        <div className="content-area">
-          <div className="content-main p-6 space-y-6">
-            {/* Timer configuration (déplacé ici) */}
-            <Card className="border-slate-700 bg-slate-800">
-              <CardHeader>
-                <CardTitle className="text-slate-100 flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-blue-400" />
-                    Configuration du Timer
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-300">
-                      {timerCfg.days > 0 || timerCfg.hours > 0 || timerCfg.minutes > 0
-                        ? `Prêt (${timerCfg.days ? `${timerCfg.days}j ` : ''}${timerCfg.hours ? `${timerCfg.hours}h ` : ''}${
-                            timerCfg.minutes ? `${timerCfg.minutes}min` : ''
-                          })`
-                        : 'Prêt'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowTimerContent((v) => !v)}
-                      className="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded text-slate-200"
-                    >
-                      {showTimerContent ? 'Masquer' : 'Afficher'}
-                    </button>
+      {/* Main Layout */}
+      <div className="flex h-[calc(100vh-120px)]">
+        {/* Sidebar - Outils et Configuration */}
+        <div className="w-[28rem] bg-slate-800 border-r border-slate-700 flex flex-col">
+          <div className="p-6 border-b border-slate-700">
+            <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-3">
+              <Settings className="w-6 h-6 text-blue-400" />
+              Outils & Configuration
+            </h2>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {/* Navigation des sections */}
+            <div className="p-6 border-b border-slate-700">
+              <div className="flex gap-2 bg-slate-700/50 rounded-lg p-2">
+                <button
+                  onClick={() => setActiveSection('timer')}
+                  className={`flex-1 px-4 py-3 text-base font-medium rounded-md transition-colors ${
+                    activeSection === 'timer'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-600'
+                  }`}
+                >
+                  <TimerIcon className="w-5 h-5 inline mr-2" />
+                  Timer
+                </button>
+                <button
+                  onClick={() => setActiveSection('kanban')}
+                  className={`flex-1 px-4 py-3 text-base font-medium rounded-md transition-colors ${
+                    activeSection === 'kanban'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-600'
+                  }`}
+                >
+                  <Target className="w-5 h-5 inline mr-2" />
+                  Kanban
+                </button>
+                <button
+                  onClick={() => setActiveSection('tools')}
+                  className={`flex-1 px-4 py-3 text-base font-medium rounded-md transition-colors ${
+                    activeSection === 'tools'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-600'
+                  }`}
+                >
+                  <Zap className="w-5 h-5 inline mr-2" />
+                  Outils
+                </button>
+              </div>
+            </div>
+
+            {/* Contenu des sections */}
+            <div className="p-6 space-y-8">
+              {/* Section Timer */}
+              {activeSection === 'timer' && (
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-base font-medium text-slate-200 flex items-center gap-2">
+                      <Clock className="w-5 h-5" />
+                      Configuration du Timer
+                    </h3>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      {(
+                        [
+                          { key: 'days', label: 'Jours', icon: <Sun className="w-4 h-4" /> },
+                          { key: 'hours', label: 'Heures', icon: <Clock className="w-4 h-4" /> },
+                          { key: 'minutes', label: 'Minutes', icon: <Zap className="w-4 h-4" /> },
+                        ] as const
+                      ).map((f) => (
+                        <div key={f.key} className="space-y-3">
+                          <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                            {f.icon}
+                            {f.label}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365}
+                              value={timerCfg[f.key]}
+                              readOnly
+                              className="bg-slate-700 border-slate-600 text-slate-100 text-center text-base h-10 flex-1"
+                            />
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 h-5 w-8 p-0 text-sm"
+                                onClick={() =>
+                                  setTimerCfg((prev) => ({
+                                    ...prev,
+                                    [f.key]: Math.min(
+                                      f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365,
+                                      (prev[f.key] as number) + 1
+                                    ),
+                                  }))
+                                }
+                              >
+                                +
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 h-5 w-8 p-0 text-sm"
+                                onClick={() =>
+                                  setTimerCfg((prev) => ({
+                                    ...prev,
+                                    [f.key]: Math.max(0, (prev[f.key] as number) - 1),
+                                  }))
+                                }
+                              >
+                                -
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Presets */}
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-slate-300">Presets rapides</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-sm h-8" onClick={() => setPreset(0, 1, 0)}>
+                          <Coffee className="w-4 h-4 mr-2" />
+                          1h
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-sm h-8" onClick={() => setPreset(0, 2, 0)}>
+                          <Sun className="w-4 h-4 mr-2" />
+                          2h
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-sm h-8" onClick={() => setPreset(0, 4, 0)}>
+                          <Sun className="w-4 h-4 mr-2" />
+                          4h
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-sm h-8" onClick={() => setPreset(1, 0, 0)}>
+                          <Moon className="w-4 h-4 mr-2" />
+                          1j
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-sm h-8" onClick={() => setPreset(0, 0, 30)}>
+                          <Zap className="w-4 h-4 mr-2" />
+                          30min
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 text-sm h-8" onClick={() => setPreset(0, 0, 0)}>
+                          <X className="w-4 h-4 mr-2" />
+                          Reset
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="space-y-3">
+                      <Button
+                        variant="default"
+                        className="bg-blue-600 hover:bg-blue-700 w-full text-base h-10"
+                        onClick={startTimer}
+                      >
+                        <Play className="w-5 h-5 mr-2" />
+                        Démarrer le Timer
+                      </Button>
+                    </div>
                   </div>
-                </CardTitle>
-              </CardHeader>
-              {showTimerContent && (
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {(
-                    [
-                      { key: 'days', label: 'Jours' },
-                      { key: 'hours', label: 'Heures' },
-                      { key: 'minutes', label: 'Minutes' },
-                    ] as const
-                  ).map((f) => (
-                    <div key={f.key} className="space-y-2">
-                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                        <span>{f.label}</span>
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365}
-                          value={timerCfg[f.key]}
-                          readOnly
-                          className="bg-slate-700 border-slate-600 text-slate-100 text-center"
-                        />
-                        <div className="flex flex-col gap-1">
+                </div>
+              )}
+
+              {/* Section Kanban */}
+              {activeSection === 'kanban' && (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-slate-200 flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      Gestion Kanban
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={addColumn}
+                        className="bg-blue-600 hover:bg-blue-700 w-full text-sm"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nouvelle Colonne
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exportTimesheetCsv}
+                        className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 w-full text-sm"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export CSV
+                      </Button>
+                    </div>
+
+                    {/* Statistiques rapides */}
+                    <div className="p-3 bg-slate-700/30 rounded border border-slate-600">
+                      <h4 className="text-xs font-medium text-slate-300 mb-2">Statistiques</h4>
+                      <div className="space-y-1 text-xs text-slate-400">
+                        <div>Colonnes: {kanban.columns.length}</div>
+                        <div>Tickets: {kanban.tickets.length}</div>
+                        <div>Terminés: {kanban.tickets.filter(t => t.columnId === 3).length}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section Outils */}
+              {activeSection === 'tools' && (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-slate-200 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      Outils de Productivité
+                    </h3>
+                    
+                    {/* Pomodoro compact */}
+                    <div className="p-4 bg-slate-700/30 rounded border border-slate-600">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          Pomodoro
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">
+                            {pomodoro.currentRound}/{pomodoro.rounds} - {pomodoro.isWork ? 'Travail' : 'Pause'}
+                          </span>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                            onClick={() =>
-                              setTimerCfg((prev) => ({
-                                ...prev,
-                                [f.key]: Math.min(
-                                  f.key === 'hours' ? 24 : f.key === 'minutes' ? 59 : 365,
-                                  (prev[f.key] as number) + 1
-                                ),
-                              }))
-                            }
+                            onClick={() => setShowPomodoroSettings(!showPomodoroSettings)}
+                            className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 h-6 px-2"
+                            title="Paramètres"
                           >
-                            +
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                            onClick={() =>
-                              setTimerCfg((prev) => ({
-                                ...prev,
-                                [f.key]: Math.max(0, (prev[f.key] as number) - 1),
-                              }))
-                            }
-                          >
-                            -
+                            <Settings className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
+                      
+                      {/* Paramètres Pomodoro */}
+                      {showPomodoroSettings && (
+                        <div className="mb-3 p-3 bg-slate-600/50 rounded border border-slate-500">
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              <div>
+                                <label className="text-xs text-slate-300">Sessions</label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  value={pomodoro.rounds}
+                                  onChange={e => setPomodoroRounds(Number(e.target.value))}
+                                  className="bg-slate-700 border-slate-600 text-slate-100 text-xs h-6"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-300">Travail (min)</label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={120}
+                                  value={pomodoro.work}
+                                  onChange={e => setPomodoroWork(Number(e.target.value))}
+                                  className="bg-slate-700 border-slate-600 text-slate-100 text-xs h-6"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-slate-300">Pause (min)</label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={60}
+                                  value={pomodoro.break}
+                                  onChange={e => setPomodoroBreak(Number(e.target.value))}
+                                  className="bg-slate-700 border-slate-600 text-slate-100 text-xs h-6"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="text-center mb-3">
+                        <div className="text-xl font-mono text-slate-100">
+                          {String(Math.floor(pomodoro.timeLeft/60)).padStart(2,'0')}:{String(pomodoro.timeLeft%60).padStart(2,'0')}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {!pomodoro.isRunning ? (
+                          <Button onClick={startPomodoro} className="bg-green-600 hover:bg-green-700 flex-1 text-sm h-7">
+                            <Play className="w-4 h-4 mr-1" />
+                            Démarrer
+                          </Button>
+                        ) : (
+                          <Button onClick={pausePomodoro} className="bg-yellow-600 hover:bg-yellow-700 flex-1 text-sm h-7">
+                            <Pause className="w-4 h-4 mr-1" />
+                            Pause
+                          </Button>
+                        )}
+                        <Button onClick={resetPomodoro} className="bg-red-600 hover:bg-red-700 text-sm h-7 px-3">
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                  ))}
-                </div>
 
-                {/* Presets */}
-                <div className="mt-4 pt-4 border-t border-slate-700">
-                  <div className="text-slate-300 text-sm mb-2">Presets rapides</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 1, 0)}>☕ 1h</Button>
-                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 2, 0)}>🍽️ 2h</Button>
-                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 4, 0)}>🌅 4h</Button>
-                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(1, 0, 0)}>🌙 1j</Button>
-                    <Button variant="outline" size="sm" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600" onClick={() => setPreset(0, 0, 30)}>⚡ 30min</Button>
+                    {/* To-Do compact */}
+                    <div className="p-4 bg-slate-700/30 rounded border border-slate-600">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                          <CheckSquare className="w-4 h-4" />
+                          To-Do Rapide
+                        </span>
+                        <span className="text-xs text-slate-400">{todos.filter(t => t.done).length}/{todos.length}</span>
+                      </div>
+                      <div className="flex gap-2 mb-3">
+                        <Input 
+                          value={todoInput} 
+                          onChange={e => setTodoInput(e.target.value)} 
+                          onKeyDown={e => { if (e.key === 'Enter' && todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} 
+                          placeholder="Nouvelle tâche..." 
+                          className="flex-1 bg-slate-700 border-slate-600 text-slate-100 text-sm h-7" 
+                        />
+                        <Button 
+                          onClick={() => { if (todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} 
+                          className="bg-blue-600 hover:bg-blue-700 text-sm h-7 px-3"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {todos.slice(0, 5).map((item, idx) => (
+                          <div key={idx} className="flex items-center justify-between bg-slate-600 border border-slate-500 rounded px-3 py-2 text-sm">
+                            <span style={{ textDecoration: item.done ? 'line-through' : undefined, color: item.done ? '#888' : undefined }} className="truncate flex-1">
+                              {item.text}
+                            </span>
+                            <div className="flex gap-1 ml-2">
+                              <Button size="sm" className="bg-green-700 hover:bg-green-800 h-5 w-5 p-0" onClick={() => toggleTodo(idx)}>
+                                {item.done ? '↩' : '✓'}
+                              </Button>
+                              <Button size="sm" className="bg-red-700 hover:bg-red-800 h-5 w-5 p-0" onClick={() => deleteTodo(idx)}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="mt-4 pt-4 border-t border-slate-700 flex items-center gap-2">
-                  <Button
-                    variant="default"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={startTimer}
-                  >
-                    🚀 Démarrer le Timer
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-                    onClick={() => setTimerCfg({ days: 0, hours: 0, minutes: 0 })}
-                  >
-                    🗑️ Effacer
-                  </Button>
-                </div>
-              </CardContent>
               )}
-            </Card>
-            {/* Kanban header */}
-            <div className="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
-              <h3 className="text-xl font-semibold text-slate-100">Tableau Kanban - Gestion des Tâches</h3>
+            </div>
+          </div>
+        </div>
+
+        {/* Zone principale - Kanban */}
+        <div className="flex-1 flex flex-col">
+          {/* Barre d'outils Kanban */}
+          <div className="bg-slate-800 border-b border-slate-700 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold text-slate-100 flex items-center gap-2">
+                  <Target className="w-6 h-6 text-blue-400" />
+                  Tableau Kanban
+                </h2>
+                <div className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-1">
+                  <div className="text-sm text-slate-300">
+                    {kanban.tickets.length} tickets
+                  </div>
+                  <div className="w-px h-4 bg-slate-600"></div>
+                  <div className="text-sm text-slate-300">
+                    {kanban.columns.length} colonnes
+                  </div>
+                </div>
+              </div>
+              
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -832,7 +1120,8 @@ export const CalendarPage: React.FC = () => {
                   onClick={exportTimesheetCsv}
                   className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
                 >
-                  Export Timesheet (CSV)
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
                 </Button>
                 <Button
                   variant="default"
@@ -840,12 +1129,15 @@ export const CalendarPage: React.FC = () => {
                   onClick={addColumn}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <Plus className="w-4 h-4 mr-1" /> Nouvelle Colonne
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle Colonne
                 </Button>
               </div>
             </div>
+          </div>
 
-            {/* Kanban board */}
+          {/* Kanban board */}
+          <div className="flex-1 overflow-hidden">
             <DragDropContext
               onDragEnd={(result: DropResult) => {
                 const destination = result.destination;
@@ -871,12 +1163,12 @@ export const CalendarPage: React.FC = () => {
                 }
               }}
             >
-              <div className="flex gap-4 overflow-auto min-h-[500px]">
+              <div className="flex gap-4 overflow-auto h-full p-4">
                 {kanban.columns.map((col, colIdx) => (
                   <div
                     key={col.id}
                     data-column-id={col.id}
-                    className="bg-slate-800 border border-slate-700 rounded-lg w-[320px] min-w-[320px] max-w-[320px] flex-shrink-0"
+                    className="bg-slate-800 border border-slate-700 rounded-lg w-[320px] min-w-[320px] max-w-[320px] flex-shrink-0 flex flex-col"
                   >
                     <div className="kanban-column-header p-4 border-b border-slate-700 bg-slate-800 rounded-t-lg">
                       <div className="flex items-start justify-between">
@@ -889,7 +1181,7 @@ export const CalendarPage: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <Button
                             variant="outline"
                             size="sm"
@@ -945,7 +1237,7 @@ export const CalendarPage: React.FC = () => {
                         <div
                           ref={ticketProvided.innerRef}
                           {...ticketProvided.droppableProps}
-                          className="p-3 max-h-[600px] overflow-y-auto"
+                          className="flex-1 p-3 overflow-y-auto"
                           data-ticket-container={col.id}
                         >
                           {kanban.tickets.filter((t) => t.columnId === col.id).map((t, tIdx) => (
@@ -1028,115 +1320,10 @@ export const CalendarPage: React.FC = () => {
                 ))}
               </div>
             </DragDropContext>
-
-            {/* Widgets de gestion du temps */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Pomodoro */}
-              <Card className="pomodoro-card border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <span className="pomodoro-icon">🍅</span> Pomodoro Timer
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col gap-2 items-center">
-                    <div className="flex gap-2 mb-2">
-                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                        <span>Sessions :</span>
-                        <Input type="number" min={1} max={10} value={pomodoro.rounds} onChange={e => setPomodoroRounds(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" />
-                      </label>
-                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                        <span>Travail :</span>
-                        <Input type="number" min={1} max={120} value={pomodoro.work} onChange={e => setPomodoroWork(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" /> min</label>
-                      <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                        <span>Pause :</span>
-                        <Input type="number" min={1} max={60} value={pomodoro.break} onChange={e => setPomodoroBreak(Number(e.target.value))} className="w-16 inline-block bg-slate-700 border border-slate-600 text-slate-100 text-center" /> min</label>
-                    </div>
-                    <div className="flex flex-col items-center gap-2 w-full">
-                      <div className="w-32 h-32 mb-2 z-0">
-                        <CircularProgressbar
-                          value={pomodoro.isWork ? (pomodoro.timeLeft / (pomodoro.work * 60)) * 100 : (pomodoro.timeLeft / (pomodoro.break * 60)) * 100}
-                          text={`${String(Math.floor(pomodoro.timeLeft/60)).padStart(2,'0')}:${String(pomodoro.timeLeft%60).padStart(2,'0')}`}
-                          styles={buildStyles({
-                            textColor: '#fff',
-                            pathColor: pomodoro.isWork ? '#22d3ee' : '#fbbf24',
-                            trailColor: '#334155',
-                            textSize: '1.5rem',
-                            pathTransitionDuration: 0.5,
-                          })}
-                          strokeWidth={10}
-                        />
-                      </div>
-                      <div className="pomodoro-status mt-2 text-lg font-semibold">
-                        Session {pomodoro.currentRound}/{pomodoro.rounds} - {pomodoro.isWork ? 'Travail' : 'Pause'}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {!pomodoro.isRunning ? (
-                        <Button onClick={startPomodoro} className="bg-green-600 hover:bg-green-700">▶️ Démarrer</Button>
-                      ) : (
-                        <Button onClick={pausePomodoro} className="bg-yellow-600 hover:bg-yellow-700">⏸️ Pause</Button>
-                      )}
-                      <Button onClick={resetPomodoro} className="bg-red-600 hover:bg-red-700">🔄 Reset</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              {/* To-Do rapide */}
-              <Card className="todo-card border-slate-700 bg-slate-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><span className="todo-icon">📝</span> To-Do Rapide</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2 mb-2">
-                    <Input value={todoInput} onChange={e => setTodoInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} placeholder="Nouvelle tâche..." className="flex-1 bg-slate-700 border border-slate-600 text-slate-100" />
-                    <Button onClick={() => { if (todoInput.trim()) { addTodo(todoInput.trim()); setTodoInput(''); }}} className="bg-blue-600 hover:bg-blue-700">Ajouter</Button>
-                  </div>
-                  <ul className="list-group space-y-2">
-                    {todos.map((item, idx) => (
-                      <li key={idx} className="flex items-center justify-between bg-slate-700 border border-slate-600 rounded px-3 py-2">
-                        <span style={{ textDecoration: item.done ? 'line-through' : undefined, color: item.done ? '#888' : undefined }}>{item.text}</span>
-                        <div className="flex gap-1">
-                          <Button size="sm" className="bg-green-700 hover:bg-green-800" onClick={() => toggleTodo(idx)}>{item.done ? '↩️' : '✔️'}</Button>
-                          <Button size="sm" className="bg-red-700 hover:bg-red-800" onClick={() => deleteTodo(idx)}>🗑️</Button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-              {/* Stats & Notes */}
-              <Card className="stats-card border-slate-700 bg-slate-800 col-span-1 md:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">📊 Statistiques de Productivité</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-6">
-                    <div><b>Tickets terminés :</b> {kanban.tickets.filter(t => t.columnId === 3).length}</div>
-                    <div><b>Temps total passé :</b> {(() => {
-                      const total = kanban.tickets.reduce((acc, t) => acc + (t.spentSeconds || 0) + (t.running && t.startedAt ? Math.floor((Date.now() - t.startedAt) / 1000) : 0), 0);
-                      const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60);
-                      return `${h}h${m ? ` ${m}min` : ''}`;
-                    })()}</div>
-                    <div><b>To-Do complétées :</b> {todos.filter(t => t.done).length}/{todos.length}</div>
-                    <div><b>Sessions Pomodoro terminées :</b> {pomodoro.currentRound - 1 + (pomodoro.isWork ? 0 : 1)}/{pomodoro.rounds}</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="notes-card border-slate-700 bg-slate-800 col-span-1 md:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">🗒️ Notes Rapides</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className="w-full min-h-[100px] bg-slate-700 border-slate-600 text-slate-100" placeholder="Écrivez vos notes ici..." />
-                </CardContent>
-              </Card>
-            </div>
-
-      
           </div>
         </div>
       </div>
+
 
       {/* Ticket Modal */}
       {showTicketModal && createPortal(

@@ -87,8 +87,14 @@ export const Modals: React.FC<ModalsProps> = ({
     <>
       {/* Modal: Créer un projet */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-2xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setCreateModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-2xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-slate-700 text-slate-100 font-semibold">Nouveau Projet</div>
             <div className="p-4 space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
@@ -158,8 +164,14 @@ export const Modals: React.FC<ModalsProps> = ({
 
       {/* Modal: Notes de service */}
       {serviceNotesOpen && selected && selected.services[serviceIdx] && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-4xl h-[80vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col">
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setServiceNotesOpen(false)}
+        >
+          <div 
+            className="w-full max-w-4xl h-[80vh] rounded-lg border border-slate-700 bg-slate-900 shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-slate-700 flex items-center justify-between">
               <div className="text-slate-100 font-semibold">
                 Notes: {selected.services[serviceIdx].service} ({selected.services[serviceIdx].port}/{selected.services[serviceIdx].proto})
@@ -271,8 +283,14 @@ export const Modals: React.FC<ModalsProps> = ({
 
       {/* Modal: Ajouter au journal d'exploit */}
       {exploitModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-2xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setExploitModalOpen(false)}
+        >
+          <div 
+            className="w-full max-w-2xl rounded-lg border border-slate-700 bg-slate-900 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-slate-700 text-slate-100 font-semibold">
               {editingStep ? 'Modifier l\'étape' : 'Nouvelle étape d\'exploitation'}
             </div>

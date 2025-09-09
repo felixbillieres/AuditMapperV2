@@ -16,7 +16,10 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  ExternalLink,
+  BookOpen,
+  Info
 } from 'lucide-react';
 
 import OverviewPanel from './OverviewPanel';
@@ -40,6 +43,7 @@ const AutoReconViewerPage: React.FC = () => {
   } = useAutoReconStore();
 
   const [showImportPanel, setShowImportPanel] = useState(!data);
+  const [showGuide, setShowGuide] = useState(false);
   const stats = getStatistics();
 
   const handleViewChange = (view: typeof currentView) => {
@@ -96,6 +100,26 @@ const AutoReconViewerPage: React.FC = () => {
                 </div>
               </div>
             </div>
+            
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setShowGuide(true)}
+                variant="outline"
+                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              >
+                <BookOpen className="w-4 h-4 mr-2" />
+                Guide d'utilisation
+              </Button>
+              
+              <Button
+                onClick={() => window.open('https://github.com/Tib3rius/AutoRecon', '_blank')}
+                variant="outline"
+                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                AutoRecon GitHub
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -108,6 +132,190 @@ const AutoReconViewerPage: React.FC = () => {
             />
           </div>
         </div>
+
+        {/* Guide d'utilisation Modal */}
+        {showGuide && (
+          <div 
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowGuide(false)}
+          >
+            <div 
+              className="w-full max-w-4xl max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Card className="h-full border-slate-700 bg-slate-800">
+                <div className="p-6 border-b border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <BookOpen className="w-6 h-6 text-blue-400" />
+                      <h2 className="text-xl font-semibold text-slate-100">Guide d'utilisation AutoRecon</h2>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowGuide(false)}
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                  <div className="space-y-6">
+                    {/* Introduction */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                        <Info className="w-5 h-5 text-blue-400" />
+                        Qu'est-ce qu'AutoRecon ?
+                      </h3>
+                      <p className="text-slate-300">
+                        AutoRecon est un outil de reconnaissance automatique pour les tests de pénétration. 
+                        Il effectue une énumération complète des services et vulnérabilités sur une cible donnée.
+                      </p>
+                    </div>
+
+                    {/* Installation */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">📦 Installation</h3>
+                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-600">
+                        <code className="text-green-400">
+                          git clone https://github.com/Tib3rius/AutoRecon.git<br/>
+                          cd AutoRecon<br/>
+                          pip3 install -r requirements.txt<br/>
+                          python3 autorecon.py [options] &lt;target&gt;
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Utilisation de base */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">🚀 Utilisation de base</h3>
+                      <div className="space-y-2">
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <p className="text-slate-300 font-medium mb-1">Scan d'une IP unique :</p>
+                          <code className="text-green-400">python3 autorecon.py 192.168.1.100</code>
+                        </div>
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <p className="text-slate-300 font-medium mb-1">Scan d'un réseau :</p>
+                          <code className="text-green-400">python3 autorecon.py 192.168.1.0/24</code>
+                        </div>
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <p className="text-slate-300 font-medium mb-1">Scan d'un domaine :</p>
+                          <code className="text-green-400">python3 autorecon.py example.com</code>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Options avancées */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">⚙️ Options avancées</h3>
+                      <div className="space-y-2">
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <p className="text-slate-300 font-medium mb-1">Scan rapide (ports communs uniquement) :</p>
+                          <code className="text-green-400">python3 autorecon.py --single-target 192.168.1.100</code>
+                        </div>
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <p className="text-slate-300 font-medium mb-1">Scan avec threads personnalisés :</p>
+                          <code className="text-green-400">python3 autorecon.py --threads 50 192.168.1.0/24</code>
+                        </div>
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <p className="text-slate-300 font-medium mb-1">Scan avec timeout personnalisé :</p>
+                          <code className="text-green-400">python3 autorecon.py --timeout 300 192.168.1.100</code>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Structure des résultats */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">📁 Structure des résultats</h3>
+                      <p className="text-slate-300">
+                        AutoRecon génère un dossier pour chaque cible scannée avec la structure suivante :
+                      </p>
+                      <div className="bg-slate-900 p-4 rounded-lg border border-slate-600">
+                        <code className="text-slate-300">
+                          target_ip/<br/>
+                          ├── nmap/           # Résultats Nmap<br/>
+                          ├── gobuster/       # Énumération web<br/>
+                          ├── nikto/          # Scan de vulnérabilités web<br/>
+                          ├── smb/            # Énumération SMB<br/>
+                          ├── ldap/           # Énumération LDAP<br/>
+                          ├── dns/            # Énumération DNS<br/>
+                          └── ...             # Autres outils
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Import dans AuditMapper */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">📥 Import dans AuditMapper</h3>
+                      <div className="space-y-2">
+                        <p className="text-slate-300">
+                          Pour importer les résultats AutoRecon dans AuditMapper :
+                        </p>
+                        <ol className="list-decimal list-inside space-y-1 text-slate-300 ml-4">
+                          <li>Exécutez AutoRecon sur votre cible</li>
+                          <li>Attendez la fin du scan (peut prendre plusieurs heures)</li>
+                          <li>Cliquez sur "Importer Résultats" dans AuditMapper</li>
+                          <li>Sélectionnez le dossier de résultats AutoRecon</li>
+                          <li>Les données seront automatiquement parsées et organisées</li>
+                        </ol>
+                      </div>
+                    </div>
+
+                    {/* Conseils d'utilisation */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">💡 Conseils d'utilisation</h3>
+                      <div className="space-y-2">
+                        <div className="bg-blue-900/20 p-3 rounded border border-blue-700/50">
+                          <p className="text-blue-200 text-sm">
+                            <strong>⚠️ Attention :</strong> AutoRecon peut être très bruyant sur le réseau. 
+                            Utilisez-le uniquement sur des environnements autorisés.
+                          </p>
+                        </div>
+                        <div className="bg-green-900/20 p-3 rounded border border-green-700/50">
+                          <p className="text-green-200 text-sm">
+                            <strong>💡 Astuce :</strong> Pour les scans de production, utilisez l'option 
+                            <code className="bg-slate-800 px-1 rounded">--single-target</code> pour réduire le bruit.
+                          </p>
+                        </div>
+                        <div className="bg-yellow-900/20 p-3 rounded border border-yellow-700/50">
+                          <p className="text-yellow-200 text-sm">
+                            <strong>⏱️ Performance :</strong> Les scans peuvent prendre plusieurs heures. 
+                            Planifiez-les en conséquence.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Liens utiles */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-slate-100">🔗 Liens utiles</h3>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          onClick={() => window.open('https://github.com/Tib3rius/AutoRecon', '_blank')}
+                          variant="outline"
+                          className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Repository GitHub
+                        </Button>
+                        <Button
+                          onClick={() => window.open('https://github.com/Tib3rius/AutoRecon/wiki', '_blank')}
+                          variant="outline"
+                          className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                        >
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          Documentation
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -130,6 +338,24 @@ const AutoReconViewerPage: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowGuide(true)}
+              variant="outline"
+              className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              Guide d'utilisation
+            </Button>
+            
+            <Button
+              onClick={() => window.open('https://github.com/Tib3rius/AutoRecon', '_blank')}
+              variant="outline"
+              className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              AutoRecon GitHub
+            </Button>
+            
             <Button
               onClick={() => setShowImportPanel(true)}
               variant="default"
@@ -280,6 +506,7 @@ const AutoReconViewerPage: React.FC = () => {
         )}
         </div>
       </div>
+
     </div>
   );
 };
