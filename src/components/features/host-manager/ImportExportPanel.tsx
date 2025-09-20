@@ -901,26 +901,45 @@ ${exportData.reports.network}
               return;
             }
             
-            addCategory({
-              name: categoryToAdd.name,
-              description: categoryToAdd.description,
-              color: categoryToAdd.color,
-              icon: categoryToAdd.icon
-            });
-            
-            // Récupérer l'ID nouvellement créé
-            // Note: Le store utilise des IDs générés automatiquement, donc on doit les récupérer après création
-            const newCategories = useHostStore.getState().categories;
-            const newCategory = newCategories.find(cat => 
+            // Vérifier d'abord si la catégorie existe déjà
+            const existingCategory = categories.find(cat => 
               cat.name === categoryToAdd.name && 
-              !Object.values(categoryMappings).includes(cat.id) &&
-              !Object.values(tempCategoryMappings).includes(cat.id)
+              cat.description === categoryToAdd.description &&
+              cat.color === categoryToAdd.color
             );
             
-            if (newCategory && oldId) {
-              categoryMappings[oldId] = newCategory.id;
-              tempCategoryMappings[oldId] = newCategory.id;
-              console.log(`Mapping catégorie: ${oldId} -> ${newCategory.id} (${categoryToAdd.name})`);
+            if (existingCategory && oldId) {
+              // La catégorie existe déjà, utiliser son ID
+              categoryMappings[oldId] = existingCategory.id;
+              tempCategoryMappings[oldId] = existingCategory.id;
+              console.log(`Catégorie existante trouvée: ${oldId} -> ${existingCategory.id} (${categoryToAdd.name})`);
+            } else {
+              // Créer la nouvelle catégorie
+              addCategory({
+                name: categoryToAdd.name,
+                description: categoryToAdd.description,
+                color: categoryToAdd.color,
+                icon: categoryToAdd.icon
+              });
+              
+              // Récupérer l'ID nouvellement créé
+              // Note: Le store utilise des IDs générés automatiquement, donc on doit les récupérer après création
+              const newCategories = useHostStore.getState().categories;
+              const newCategory = newCategories.find(cat => 
+                cat.name === categoryToAdd.name && 
+                cat.description === categoryToAdd.description &&
+                cat.color === categoryToAdd.color &&
+                !Object.values(categoryMappings).includes(cat.id) &&
+                !Object.values(tempCategoryMappings).includes(cat.id)
+              );
+              
+              if (newCategory && oldId) {
+                categoryMappings[oldId] = newCategory.id;
+                tempCategoryMappings[oldId] = newCategory.id;
+                console.log(`Mapping catégorie: ${oldId} -> ${newCategory.id} (${categoryToAdd.name})`);
+              } else if (oldId) {
+                console.warn(`Impossible de trouver la catégorie créée pour ${categoryToAdd.name} (ancien ID: ${oldId})`);
+              }
             }
             
             importedCount++;
@@ -934,6 +953,7 @@ ${exportData.reports.network}
       if (importOptions.hosts && importPreview.hosts) {
         console.log('Import des hôtes:', importPreview.hosts.length);
         console.log('Mappings de catégories disponibles:', categoryMappings);
+        console.log('Catégories actuelles dans le store:', useHostStore.getState().categories.map(c => ({ id: c.id, name: c.name })));
         
         // S'assurer que importPreview.hosts est un tableau
         const hostsToImport = Array.isArray(importPreview.hosts) ? importPreview.hosts : 
@@ -953,14 +973,29 @@ ${exportData.reports.network}
               // Vérifier si la catégorie existe dans les catégories actuelles
               const currentCategories = useHostStore.getState().categories;
               const existingCategory = currentCategories.find(cat => cat.id === host.category);
-              if (!existingCategory) {
-                console.warn(`Host ${host.ip}: Catégorie ${host.category} introuvable, assignation à la première catégorie disponible`);
-                mappedCategory = currentCategories.length > 0 ? currentCategories[0].id : '';
+              if (existingCategory) {
+                mappedCategory = host.category;
+                console.log(`Host ${host.ip}: Catégorie ${host.category} trouvée directement`);
+              } else {
+                // Essayer de trouver par nom de catégorie (fallback)
+                const categoryByName = currentCategories.find(cat => 
+                  cat.name.toLowerCase() === host.category.toLowerCase() ||
+                  cat.name.toLowerCase().includes(host.category.toLowerCase()) ||
+                  host.category.toLowerCase().includes(cat.name.toLowerCase())
+                );
+                if (categoryByName) {
+                  mappedCategory = categoryByName.id;
+                  console.log(`Host ${host.ip}: Catégorie trouvée par nom: ${host.category} -> ${categoryByName.name} (${categoryByName.id})`);
+                } else {
+                  console.warn(`Host ${host.ip}: Catégorie ${host.category} introuvable, assignation à la première catégorie disponible`);
+                  mappedCategory = currentCategories.length > 0 ? currentCategories[0].id : '';
+                }
               }
             } else {
               // Pas de catégorie définie, assigner à la première disponible
               const currentCategories = useHostStore.getState().categories;
               mappedCategory = currentCategories.length > 0 ? currentCategories[0].id : '';
+              console.log(`Host ${host.ip}: Pas de catégorie définie, assignation à la première disponible: ${mappedCategory}`);
             }
             
             // Gérer l'assignation du projet
@@ -972,15 +1007,22 @@ ${exportData.reports.network}
             }
             
             // S'assurer que l'hôte a un ID unique et tous les champs requis
+            // IMPORTANT: propager d'abord l'hôte original, puis surcharger avec les valeurs mappées
             const hostToAdd = {
+              // Préserver tous les autres champs de l'hôte original
+              ...host,
+              // Champs normalisés et valeurs par défaut
               ip: host.ip || '0.0.0.0',
               hostname: host.hostname || '',
               os: host.os || 'Unknown',
               status: host.status || 'active',
               priority: host.priority || 'medium',
               compromiseLevel: host.compromiseLevel || 'none',
+              // Appliquer la catégorie mappée APRÈS la propagation
               category: mappedCategory,
-              projectId: projectId, // Assigner le projectId
+              // Gérer le projet (priorité au projet déterminé ci-dessus)
+              projectId: projectId,
+              // Collections par défaut
               usernames: host.usernames || [],
               passwords: host.passwords || [],
               hashes: host.hashes || [],
@@ -994,9 +1036,7 @@ ${exportData.reports.network}
               incomingConnections: host.incomingConnections || [],
               notes: host.notes || '',
               credentials: host.credentials || [],
-              // Préserver tous les autres champs de l'hôte original
-              ...host,
-              // S'assurer que l'ID est unique
+              // S'assurer que l'ID est unique (sera ignoré par addHost de toute façon)
               id: host.id || Date.now().toString() + Math.random().toString(36).substr(2, 9),
               // Mettre à jour les timestamps
               createdAt: host.createdAt || new Date().toISOString(),

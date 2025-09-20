@@ -172,6 +172,17 @@ export const HostManager: React.FC<HostManagerProps> = () => {
     setSelectedHost(host);
   };
 
+  const handleCreateHost = () => {
+    setShowSidebar(true);
+  };
+
+  const handleCreateConnection = (fromHostId?: string) => {
+    // TODO: Implémenter la création de connexions
+    console.log('Créer connexion depuis:', fromHostId);
+    // Pour l'instant, on ouvre la sidebar pour créer un host
+    setShowSidebar(true);
+  };
+
   const parseHostsFromText = (text: string): { ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[] => {
     const results: any[] = [];
     const lines = text.split(/\r?\n/);
@@ -1001,6 +1012,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   onNodeSelect={handleHostSelect}
                   selectedHost={selectedHost}
                   showLabels={showNetworkLabels}
+                  onCreateHost={handleCreateHost}
+                  onCreateConnection={handleCreateConnection}
                 />
               ) : (
                 <KillchainVisualization
@@ -1140,6 +1153,8 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   onNodeSelect={handleNodeClickInFullscreen}
                   selectedHost={selectedHost}
                   showLabels={showNetworkLabels}
+                  onCreateHost={handleCreateHost}
+                  onCreateConnection={handleCreateConnection}
                 />
               ) : networkStyle === 'killchain' ? (
                 <KillchainVisualization
@@ -1148,6 +1163,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   onNodeSelect={handleNodeClickInFullscreen}
                   selectedHost={selectedHost}
                   showLabels={showNetworkLabels}
+                  onCreateHost={() => setShowSidebar(true)}
+                  onCreateConnection={(fromHostId) => {
+                    // TODO: Implémenter la création de connexions
+                    console.log('Créer connexion depuis:', fromHostId);
+                  }}
                 />
               ) : (
                 <NetworkVisualization
@@ -1158,6 +1178,11 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   uiRightOffset={120}
                   showLabels={showNetworkLabels}
                   graphStyle="bloodhound"
+                  onCreateHost={() => setShowSidebar(true)}
+                  onCreateConnection={(fromHostId) => {
+                    // TODO: Implémenter la création de connexions
+                    console.log('Créer connexion depuis:', fromHostId);
+                  }}
                 />
               )}
             </div>

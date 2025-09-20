@@ -4,6 +4,8 @@ import dagre from 'cytoscape-dagre';
 import coseBilkent from 'cytoscape-cose-bilkent';
 import { Host, Category } from '@/types';
 import { LegendButton } from './LegendButton';
+import { ContextMenu, ContextMenuItem } from '@/components/ui/ContextMenu';
+import { Eye, Target, Trash2, Plus, Settings, RefreshCw } from 'lucide-react';
 
 // Enregistrer les extensions
 cytoscape.use(dagre);
@@ -15,6 +17,8 @@ interface KillchainVisualizationProps {
   onNodeSelect?: (host: Host) => void;
   selectedHost?: Host | null;
   showLabels?: boolean;
+  onCreateHost?: () => void;
+  onCreateConnection?: (fromHostId?: string) => void;
 }
 
 interface Phase {
@@ -37,13 +41,26 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
   categories,
   onNodeSelect,
   selectedHost,
-  showLabels = true
+  showLabels = true,
+  onCreateHost,
+  onCreateConnection,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [, setHoveredNode] = useState<string | null>(null);
   const onNodeSelectRef = useRef(onNodeSelect);
   const isInternalSelection = useRef(false);
+  
+  // État du menu contextuel
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    nodeId?: string;
+    edgeId?: string;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 }
+  });
 
   // Mémoriser la fonction de callback pour éviter les re-renders
   const memoizedOnNodeSelect = useCallback((host: Host) => {
@@ -56,6 +73,29 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
   useEffect(() => {
     onNodeSelectRef.current = memoizedOnNodeSelect;
   }, [memoizedOnNodeSelect]);
+
+  // Fonctions pour le menu contextuel
+  const handleContextMenu = (event: MouseEvent, nodeId?: string, edgeId?: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const x = event.clientX;
+    const y = event.clientY;
+    
+    setContextMenu({
+      isOpen: true,
+      position: { x, y },
+      nodeId,
+      edgeId
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 }
+    });
+  };
 
   // Définir les types de nœuds avec couleurs et icônes comme dans BloodHound
   const nodeTypes: { [key: string]: NodeType } = {
@@ -201,7 +241,7 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
     const nodeIds = new Set<string>();
 
     // Ajouter les nœuds de phase (zones de killchain) - hauteur standard comme v1
-    phases.forEach((phase, phaseIndex) => {
+    phases.forEach((phase) => {
       // Nœud de phase (zone invisible pour l'organisation)
       const phaseId = `phase-${phase.id}`;
       nodeIds.add(phaseId);
@@ -224,14 +264,13 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
     });
 
     // Ajouter les nœuds hosts dans leurs phases respectives - coordonnées corrigées
-    phases.forEach((phase, phaseIndex) => {
+    phases.forEach((phase) => {
       const phaseCenterX = phase.x + phase.width / 2;
       const phaseTopY = 100; // Début des nœuds
       const phaseBottomY = 700; // Fin des nœuds - container plus haut
       const phaseCenterY = (phaseTopY + phaseBottomY) / 2; // Centre vertical
       
       // Calculer la disposition optimale
-      const nodeSize = 65; // Taille des nœuds
       const nodeSpacing = 80; // Espacement entre les nœuds
       const margin = 60; // Marge de sécurité
       
@@ -360,22 +399,22 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
         {
           selector: '.killchain-phase',
           style: {
-            'background-color': (ele) => ele.data('phaseColor'),
-            'border-color': (ele) => ele.data('phaseColor'),
+            'background-color': (ele: any) => ele.data('phaseColor'),
+            'border-color': (ele: any) => ele.data('phaseColor'),
             'border-width': 3,
             'border-style': 'dashed',
-            'width': (ele) => ele.data('width'),
-            'height': (ele) => ele.data('height'),
+            'width': (ele: any) => ele.data('width'),
+            'height': (ele: any) => ele.data('height'),
             'shape': 'rectangle',
             'font-size': '18px',
             'font-weight': 'bold',
-            'color': (ele) => ele.data('phaseColor'),
+            'color': (ele: any) => ele.data('phaseColor'),
             'text-valign': 'top',
             'text-halign': 'center',
             'text-margin-y': 15,
             'text-outline-width': 2,
             'text-outline-color': '#000000',
-            'label': (ele) => ele.data('label'),
+            'label': (ele: any) => ele.data('label'),
             'opacity': 0.15,
             'z-index': 1
           }
@@ -401,10 +440,10 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
             'text-margin-y': 0,
             'text-wrap': 'wrap',
             'text-max-width': '100px',
-            'line-height': '1.2',
+            'line-height': 1.2,
             'text-outline-width': 1,
             'text-outline-color': '#000000',
-            'label': (ele) => ele.data('label'),
+            'label': (ele: any) => ele.data('label'),
             'z-index': 10
           }
         },
@@ -413,10 +452,10 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
           selector: '.killchain-edge',
           style: {
             'width': 1,
-            'line-color': (ele) => getConnectionColor(ele.data('connectionType')),
-            'target-arrow-color': (ele) => getConnectionColor(ele.data('connectionType')),
+            'line-color': (ele: any) => getConnectionColor(ele.data('connectionType')),
+            'target-arrow-color': (ele: any) => getConnectionColor(ele.data('connectionType')),
             'target-arrow-shape': 'triangle',
-            'target-arrow-size': '3px',
+            'arrow-scale': 3,
             'curve-style': 'straight',
             'font-size': '8px',
             'color': '#000000',
@@ -451,11 +490,11 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
       ],
       layout: {
         name: 'preset',
-        positions: (node) => {
+        positions: (node: any) => {
           if (node.data('x') && node.data('y')) {
             return { x: node.data('x'), y: node.data('y') };
           }
-          return undefined;
+          return { x: 0, y: 0 };
         },
         fit: true,
         padding: 120,
@@ -509,6 +548,26 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
       setHoveredNode(null);
     });
 
+    // Gestionnaire pour le clic droit sur les nœuds
+    cy.on('cxttap', 'node', (event) => {
+      const node = event.target;
+      const originalEvent = event.originalEvent as MouseEvent;
+      handleContextMenu(originalEvent, node.id());
+    });
+
+    // Gestionnaire pour le clic droit sur les arêtes
+    cy.on('cxttap', 'edge', (event) => {
+      const edge = event.target;
+      const originalEvent = event.originalEvent as MouseEvent;
+      handleContextMenu(originalEvent, undefined, edge.id());
+    });
+
+    // Gestionnaire pour le clic droit sur le background
+    cy.on('cxttap', (event) => {
+      const originalEvent = event.originalEvent as MouseEvent;
+      handleContextMenu(originalEvent);
+    });
+
     cyRef.current = cy;
 
     // Le graph est prêt
@@ -545,11 +604,11 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
       // Appliquer les positions prédéfinies de manière stable
       cyRef.current.layout({
         name: 'preset',
-        positions: (node) => {
+        positions: (node: any) => {
           if (node.data('x') && node.data('y')) {
             return { x: node.data('x'), y: node.data('y') };
           }
-          return undefined;
+          return { x: 0, y: 0 };
         },
         fit: true,
         padding: 80,
@@ -569,6 +628,113 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
       }
     }
   }, [selectedHost]);
+
+  // Créer les éléments du menu contextuel
+  const getContextMenuItems = (): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    if (contextMenu.nodeId) {
+      // Menu pour un nœud
+      const host = hosts.find(h => h.id === contextMenu.nodeId);
+      items.push(
+        {
+          id: 'view-node',
+          label: `Voir ${host?.hostname || host?.ip || 'ce nœud'}`,
+          icon: <Eye className="w-4 h-4" />,
+          action: () => {
+            if (host && onNodeSelect) {
+              onNodeSelect(host);
+            }
+          }
+        },
+        {
+          id: 'create-connection',
+          label: 'Créer une connexion',
+          icon: <Target className="w-4 h-4" />,
+          action: () => {
+            if (onCreateConnection && contextMenu.nodeId) {
+              onCreateConnection(contextMenu.nodeId);
+            }
+          }
+        },
+        { id: 'separator1', label: '', action: () => {}, separator: true },
+        {
+          id: 'delete-node',
+          label: 'Supprimer le nœud',
+          icon: <Trash2 className="w-4 h-4" />,
+          action: () => {
+            if (host && confirm(`Supprimer ${host.hostname || host.ip} ?`)) {
+              // Supprimer le host du store
+              // Note: Cette fonctionnalité nécessiterait d'être ajoutée au store
+              console.log('Suppression du nœud:', host.id);
+            }
+          }
+        }
+      );
+    } else if (contextMenu.edgeId) {
+      // Menu pour une arête
+      items.push(
+        {
+          id: 'delete-connection',
+          label: 'Supprimer la connexion',
+          icon: <Trash2 className="w-4 h-4" />,
+          action: () => {
+            if (confirm('Supprimer cette connexion ?')) {
+              // Supprimer la connexion
+              console.log('Suppression de la connexion:', contextMenu.edgeId);
+            }
+          }
+        }
+      );
+    } else {
+      // Menu pour le vide
+      items.push(
+        {
+          id: 'create-host',
+          label: 'Créer un hôte',
+          icon: <Plus className="w-4 h-4" />,
+          action: () => {
+            if (onCreateHost) {
+              onCreateHost();
+            }
+          }
+        },
+        {
+          id: 'create-connection',
+          label: 'Créer une connexion',
+          icon: <Target className="w-4 h-4" />,
+          action: () => {
+            if (onCreateConnection) {
+              onCreateConnection();
+            }
+          }
+        },
+        { id: 'separator1', label: '', action: () => {}, separator: true },
+        {
+          id: 'fit-screen',
+          label: 'Ajuster à l\'écran',
+          icon: <RefreshCw className="w-4 h-4" />,
+          action: () => {
+            if (cyRef.current) {
+              cyRef.current.fit();
+            }
+          }
+        },
+        {
+          id: 'auto-space',
+          label: 'Espacement automatique',
+          icon: <Settings className="w-4 h-4" />,
+          action: () => {
+            if (cyRef.current) {
+              cyRef.current.layout({ name: 'preset' }).run();
+            }
+          }
+        }
+      );
+    }
+
+    return items;
+  };
 
   return (
     <div className="relative w-full h-full bg-slate-900">
@@ -594,6 +760,14 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
           { color: '#94a3b8', label: 'Attack Phases', description: 'Phases d\'attaque (bordures en pointillés)' }
         ]}
         className="absolute top-4 right-4 z-20"
+      />
+
+      {/* Menu contextuel */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        items={getContextMenuItems()}
+        onClose={closeContextMenu}
       />
     </div>
   );

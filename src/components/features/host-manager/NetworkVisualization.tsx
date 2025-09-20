@@ -9,18 +9,16 @@ import {
   Database,
   Monitor,
   Smartphone,
-  Wifi,
   Target,
-  Activity,
   Eye,
   Settings,
   RefreshCw,
-  Layers,
-  Info
+  Plus,
+  Trash2
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Host, Category } from '@/types';
 import { useHostStore } from '@/stores/hostStore';
+import { ContextMenu, ContextMenuItem } from '@/components/ui/ContextMenu';
 
 interface NetworkVisualizationProps {
   hosts: Host[];
@@ -30,6 +28,8 @@ interface NetworkVisualizationProps {
   uiRightOffset?: number; // Décalage des éléments en haut à droite (px)
   showLabels?: boolean;
   graphStyle?: 'bloodhound';
+  onCreateHost?: () => void;
+  onCreateConnection?: (fromHostId?: string) => void;
 }
 
 interface DeviceType {
@@ -47,9 +47,10 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   categories,
   onNodeSelect,
   selectedHost,
-  uiRightOffset,
   showLabels: externalShowLabels = true,
   graphStyle: externalGraphStyle = 'bloodhound',
+  onCreateHost,
+  onCreateConnection,
 }) => {
   const networkRef = useRef<HTMLDivElement>(null);
   const networkInstance = useRef<Network | null>(null);
@@ -58,8 +59,28 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const { hosts: hostsMap, updateHost } = useHostStore();
   const [showLabels, setShowLabels] = useState(externalShowLabels);
   const [graphStyle, setGraphStyle] = useState<'bloodhound'>(externalGraphStyle);
-  const [connectionCount, setConnectionCount] = useState(0);
   // Supprimé: savedEdges local non persistant
+  
+  // État du menu contextuel
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    nodeId?: string;
+    edgeId?: string;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 }
+  });
+
+  // Sauvegarder les positions
+  const persistPositions = (ids?: (string|number)[]) => {
+    if (!networkInstance.current) return;
+    const nodeIds = ids && ids.length ? ids : hosts.map(h => h.id);
+    const positions = networkInstance.current.getPositions(nodeIds as any);
+    Object.entries(positions).forEach(([nodeId, position]) => {
+      updateNetworkNode(nodeId, { x: (position as any).x, y: (position as any).y });
+    });
+  };
 
   // Déterminer le type d'appareil basé sur l'OS et les services - style killchain avec emojis
   const getDeviceType = (host: Host): DeviceType => {
@@ -155,67 +176,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     };
   };
 
-  // Obtenir la couleur basée sur la catégorie et le statut
-  const getNodeColor = (host: Host, deviceType: DeviceType) => {
-    const category = categories.find(c => c.id === host.category);
-    
-    // Couleurs de priorité par catégorie améliorées pour les icônes
-    const categoryColors: { [key: string]: string } = {
-      'critical': '#ef4444',     // Rouge vif
-      'high': '#f97316',         // Orange vif
-      'medium': '#f59e0b',       // Jaune orange
-      'low': '#84cc16',          // Vert lime
-      'info': '#06b6d4',         // Cyan vif
-      'secure': '#10b981',       // Vert émeraude
-      'compromised': '#dc2626',  // Rouge foncé
-      'vulnerable': '#ea580c',   // Orange rouge
-      'target': '#8b5cf6',       // Violet
-      'pivot': '#ec4899',        // Rose
-      'discovered': '#3b82f6',   // Bleu
-      'scanned': '#6366f1'       // Indigo
-    };
-    
-    // Statut de compromission prioritaire
-    if (host.status === 'compromised') {
-      return '#dc2626'; // rouge critique
-    }
-    
-    if (category) {
-      // Recherche par nom exact d'abord
-      if (categoryColors[category.name.toLowerCase()]) {
-        return categoryColors[category.name.toLowerCase()];
-      }
-      
-      // Recherche par mots-clés dans le nom
-      const lowerName = category.name.toLowerCase();
-      for (const [key, color] of Object.entries(categoryColors)) {
-        if (lowerName.includes(key)) {
-          return color;
-        }
-      }
-      
-      // Couleur par hash du nom de catégorie si pas de correspondance (plus vive)
-      const hash = category.name.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0);
-        return a & a;
-      }, 0);
-      const hue = Math.abs(hash) % 360;
-      return `hsl(${hue}, 75%, 55%)`; // Saturation et luminosité augmentées
-    }
-    
-    // Couleurs de fallback améliorées basées sur le type d'appareil
-    const improvedDeviceColors = {
-      'server': '#3b82f6',      // Bleu vif
-      'router': '#8b5cf6',      // Violet vif  
-      'firewall': '#f59e0b',    // Orange vif
-      'database': '#06b6d4',    // Cyan vif
-      'workstation': '#10b981', // Vert émeraude
-      'mobile': '#84cc16',      // Vert lime
-      'unknown': '#6b7280'      // Gris
-    };
-    
-    return improvedDeviceColors[deviceType.type] || deviceType.color;
-  };
 
   // Obtenir le statut de sécurité
   const getSecurityStatus = (host: Host) => {
@@ -238,6 +198,70 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   useEffect(() => {
     onNodeSelectRef.current = onNodeSelect;
   }, [onNodeSelect]);
+
+  // Fonctions pour le menu contextuel
+  const handleContextMenu = (event: MouseEvent, params?: any) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Obtenir les coordonnées de la souris
+    const rect = networkRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const x = event.clientX;
+    const y = event.clientY;
+    
+    if (params?.nodes?.length > 0) {
+      // Clic droit sur un nœud
+      setContextMenu({
+        isOpen: true,
+        position: { x, y },
+        nodeId: params.nodes[0]
+      });
+    } else if (params?.edges?.length > 0) {
+      // Clic droit sur une arête
+      setContextMenu({
+        isOpen: true,
+        position: { x, y },
+        edgeId: params.edges[0]
+      });
+    } else {
+      // Clic droit sur le vide
+      setContextMenu({
+        isOpen: true,
+        position: { x, y }
+      });
+    }
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 }
+    });
+  };
+
+  // Gestionnaire pour le clic droit (menu contextuel) - géré manuellement
+  const handleRightClick = (event: MouseEvent) => {
+    if (event.button === 2) { // Clic droit
+      const canvas = networkRef.current?.querySelector('canvas');
+      if (canvas && networkInstance.current) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        // Obtenir les nœuds et arêtes à cette position
+        const clickPosition = { x, y };
+        const clickedNodes = networkInstance.current.getNodeAt(clickPosition as any) ? [networkInstance.current.getNodeAt(clickPosition as any)] : [];
+        const clickedEdges = networkInstance.current.getEdgeAt(clickPosition as any) ? [networkInstance.current.getEdgeAt(clickPosition as any)] : [];
+        
+        handleContextMenu(event, { 
+          nodes: clickedNodes, 
+          edges: clickedEdges 
+        });
+      }
+    }
+  };
 
   // Synchroniser les props externes
   useEffect(() => {
@@ -270,7 +294,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const borderStyle = borderConfig[securityStatus];
         const category = categories.find(c => c.id === host.category);
         const zoneColor = category?.color || '#64748b';
-        const iconChar = deviceType.iconCode || '🌐';
         const isSelected = selectedHost?.id === host.id;
         
         // Nœud avec style killchain - petit cercle fixe avec emoji au centre et texte en dessous
@@ -508,7 +531,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             };
             
             // Redessiner les icônes quand le réseau se redessine
-            networkInstance.current.on('redraw', drawNodeIcons);
+            networkInstance.current.on('afterDrawing', drawNodeIcons);
             drawNodeIcons();
           }
         }
@@ -538,15 +561,12 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       }
     });
 
-    // Sauvegarder les positions
-    const persistPositions = (ids?: (string|number)[]) => {
-      if (!networkInstance.current) return;
-      const nodeIds = ids && ids.length ? ids : hosts.map(h => h.id);
-      const positions = networkInstance.current.getPositions(nodeIds as any);
-      Object.entries(positions).forEach(([nodeId, position]) => {
-        updateNetworkNode(nodeId, { x: (position as any).x, y: (position as any).y });
-      });
-    };
+    // Attacher l'événement de clic droit au container
+    const container = networkRef.current;
+    if (container) {
+      container.addEventListener('contextmenu', handleRightClick);
+    }
+
     networkInstance.current.on('dragEnd', (params) => {
       // Ne rien faire si l'utilisateur a juste déplacé la vue (aucun nœud sélectionné)
       if (!params || !params.nodes || params.nodes.length === 0) return;
@@ -582,7 +602,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     let stabilizationDone = false;
     networkInstance.current.on('stabilizationIterationsDone', () => {
       if (!stabilizationDone) {
-        setConnectionCount(edgeList.length);
         try {
           // Sauver positions et désactiver la physique pour garder une carte stable
           persistPositions();
@@ -597,6 +616,13 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         networkInstance.current.destroy();
         networkInstance.current = null;
       }
+      
+      // Nettoyer l'événement de clic droit
+      const container = networkRef.current;
+      if (container) {
+        container.removeEventListener('contextmenu', handleRightClick);
+      }
+      
       delete (window as any).addNetworkConnection;
       delete (window as any).removeNetworkConnection;
       delete (window as any).removeAllNetworkConnections;
@@ -604,11 +630,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     };
   }, [hostIdsSignature, categoriesSignature, showLabels, graphStyle]);
 
-  // Initialiser le compteur de connexions
-  useEffect(() => {
-    const count = hosts.reduce((acc, h) => acc + ((h.outgoingConnections || []).length), 0);
-    setConnectionCount(count);
-  }, [hosts]);
 
   // Mettre en surbrillance le nœud sélectionné SANS changer la vue
   useEffect(() => {
@@ -714,10 +735,12 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           y: newPositions[id].y
         }));
         
-        networkInstance.current.setData({
-          nodes: networkInstance.current.body.data.nodes.update(nodeUpdate),
-          edges: networkInstance.current.body.data.edges
-        });
+        // Mettre à jour les positions des nœuds
+        try {
+          (networkInstance.current as any).body.data.nodes.update(nodeUpdate);
+        } catch (error) {
+          console.warn('Erreur lors de la mise à jour des positions:', error);
+        }
         
         // Restaurer la vue après un court délai
         setTimeout(() => {
@@ -736,6 +759,111 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         setTimeout(() => fitToScreen(), 200);
       }
     }
+  };
+
+  // Créer les éléments du menu contextuel
+  const getContextMenuItems = (): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    if (contextMenu.nodeId) {
+      // Menu pour un nœud
+      const host = hosts.find(h => h.id === contextMenu.nodeId);
+      items.push(
+        {
+          id: 'view-node',
+          label: `Voir ${host?.hostname || host?.ip || 'ce nœud'}`,
+          icon: <Eye className="w-4 h-4" />,
+          action: () => {
+            if (host && onNodeSelect) {
+              onNodeSelect(host);
+            }
+          }
+        },
+        {
+          id: 'create-connection',
+          label: 'Créer une connexion',
+          icon: <Target className="w-4 h-4" />,
+          action: () => {
+            if (onCreateConnection && contextMenu.nodeId) {
+              onCreateConnection(contextMenu.nodeId);
+            }
+          }
+        },
+        { id: 'separator1', label: '', action: () => {}, separator: true },
+        {
+          id: 'delete-node',
+          label: 'Supprimer le nœud',
+          icon: <Trash2 className="w-4 h-4" />,
+          action: () => {
+            if (host && confirm(`Supprimer ${host.hostname || host.ip} ?`)) {
+              // Supprimer le host du store
+              // Note: Cette fonctionnalité nécessiterait d'être ajoutée au store
+              console.log('Suppression du nœud:', host.id);
+            }
+          }
+        }
+      );
+    } else if (contextMenu.edgeId) {
+      // Menu pour une arête
+      items.push(
+        {
+          id: 'delete-connection',
+          label: 'Supprimer la connexion',
+          icon: <Trash2 className="w-4 h-4" />,
+          action: () => {
+            if (confirm('Supprimer cette connexion ?')) {
+              // Supprimer la connexion
+              console.log('Suppression de la connexion:', contextMenu.edgeId);
+            }
+          }
+        }
+      );
+    } else {
+      // Menu pour le vide
+      items.push(
+        {
+          id: 'create-host',
+          label: 'Créer un hôte',
+          icon: <Plus className="w-4 h-4" />,
+          action: () => {
+            if (onCreateHost) {
+              onCreateHost();
+            }
+          }
+        },
+        {
+          id: 'create-connection',
+          label: 'Créer une connexion',
+          icon: <Target className="w-4 h-4" />,
+          action: () => {
+            if (onCreateConnection) {
+              onCreateConnection();
+            }
+          }
+        },
+        { id: 'separator1', label: '', action: () => {}, separator: true },
+        {
+          id: 'fit-screen',
+          label: 'Ajuster à l\'écran',
+          icon: <RefreshCw className="w-4 h-4" />,
+          action: fitToScreen
+        },
+        {
+          id: 'auto-space',
+          label: 'Espacement automatique',
+          icon: <Settings className="w-4 h-4" />,
+          action: autoSpace
+        },
+        {
+          id: 'reset-layout',
+          label: 'Réinitialiser le layout',
+          icon: <RefreshCw className="w-4 h-4" />,
+          action: resetLayout
+        }
+      );
+    }
+
+    return items;
   };
 
   return (
@@ -847,6 +975,14 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         ref={networkRef} 
         className="w-full h-full" 
         style={{ height: '100%' }}
+      />
+
+      {/* Menu contextuel */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        items={getContextMenuItems()}
+        onClose={closeContextMenu}
       />
     </div>
   );
