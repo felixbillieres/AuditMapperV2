@@ -24,7 +24,7 @@ export const HostForm: React.FC<HostFormProps> = ({
     notes: host?.notes || '',
     status: host?.status || 'active',
     priority: host?.priority || 'medium',
-    compromiseLevel: host?.compromiseLevel || 'none',
+    compromiseLevel: host?.compromiseLevel || 'no_foothold',
     usernames: host?.usernames || [],
     passwords: host?.passwords || [],
     hashes: host?.hashes || [],
@@ -171,10 +171,11 @@ export const HostForm: React.FC<HostFormProps> = ({
                     value={formData.compromiseLevel}
                     onChange={(e) => setFormData({ ...formData, compromiseLevel: e.target.value as any })}
                   >
-                    <option value="none">Aucun</option>
-                    <option value="initial">Initial</option>
-                    <option value="partial">Partiel</option>
-                    <option value="full">Complet</option>
+                    <option value="no_foothold">Pas d'accès</option>
+                    <option value="user_access">Accès utilisateur</option>
+                    <option value="root_access">Accès root/admin</option>
+                    <option value="domain_admin">Administrateur de domaine</option>
+                    <option value="fully_compromised">Entièrement compromis</option>
                   </select>
                 </div>
               </div>

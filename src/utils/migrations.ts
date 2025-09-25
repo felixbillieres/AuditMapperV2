@@ -112,10 +112,31 @@ export const syncCredentialsToLegacy = (host: Host): Host => {
 };
 
 /**
+ * Migre les anciens niveaux de compromission vers les nouveaux
+ */
+export const migrateCompromiseLevel = (host: Host): Host => {
+  const migratedHost = { ...host };
+  
+  // Migration des anciens niveaux vers les nouveaux
+  if (migratedHost.compromiseLevel === 'none') {
+    migratedHost.compromiseLevel = 'no_foothold';
+  } else if (migratedHost.compromiseLevel === 'initial') {
+    migratedHost.compromiseLevel = 'user_access';
+  } else if (migratedHost.compromiseLevel === 'partial') {
+    migratedHost.compromiseLevel = 'root_access';
+  } else if (migratedHost.compromiseLevel === 'full') {
+    migratedHost.compromiseLevel = 'fully_compromised';
+  }
+  
+  return migratedHost;
+};
+
+/**
  * Migre un host complet (credentials + s'assure que toutes les propriétés nécessaires existent)
  */
 export const migrateHost = (host: Host): Host => {
   let migratedHost = migrateHostCredentials(host);
+  migratedHost = migrateCompromiseLevel(migratedHost);
   migratedHost = syncCredentialsToLegacy(migratedHost);
   
   // S'assurer que toutes les propriétés arrays existent

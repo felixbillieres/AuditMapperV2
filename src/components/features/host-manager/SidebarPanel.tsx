@@ -19,6 +19,7 @@ import { ExploitationModal } from './ExploitationModal';
 import { GlobalCredentialsView } from './GlobalCredentialsView';
 import { GlobalVulnerabilitiesView } from './GlobalVulnerabilitiesView';
 import { GlobalScreenshotsView } from './GlobalScreenshotsView';
+import { CredentialPairsManager } from './CredentialPairsManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -247,11 +248,11 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-slate-600">
-                      <SelectItem value="none">Aucun</SelectItem>
-                      <SelectItem value="low">Faible</SelectItem>
-                      <SelectItem value="medium">Moyen</SelectItem>
-                      <SelectItem value="high">Élevé</SelectItem>
-                      <SelectItem value="critical">Critique</SelectItem>
+                      <SelectItem value="no_foothold">Pas d'accès</SelectItem>
+                      <SelectItem value="user_access">Accès utilisateur</SelectItem>
+                      <SelectItem value="root_access">Accès root/admin</SelectItem>
+                      <SelectItem value="domain_admin">Administrateur de domaine</SelectItem>
+                      <SelectItem value="fully_compromised">Entièrement compromis</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -734,6 +735,12 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                       )}
                   </CardContent>
                 </Card>
+
+                {/* Paires de Credentials */}
+                <CredentialPairsManager
+                  host={selectedHost}
+                  onUpdateHost={handleUpdateHost}
+                />
                 </div>
               )}
 

@@ -56,13 +56,15 @@ const getPriorityColor = (priority: Host['priority']) => {
 
 const getCompromiseLevelColor = (level: Host['compromiseLevel']) => {
   switch (level) {
-    case 'full':
+    case 'fully_compromised':
       return 'border-cyber-danger';
-    case 'partial':
+    case 'domain_admin':
+      return 'border-orange-500';
+    case 'root_access':
       return 'border-cyber-warning';
-    case 'initial':
+    case 'user_access':
       return 'border-cyber-secondary';
-    case 'none':
+    case 'no_foothold':
     default:
       return 'border-dark-600';
   }

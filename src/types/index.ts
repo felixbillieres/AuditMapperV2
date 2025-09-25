@@ -26,7 +26,7 @@ export interface Host {
   os?: string;
   status: 'up' | 'down' | 'unknown' | 'active' | 'inactive' | 'compromised';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  compromiseLevel: 'none' | 'initial' | 'partial' | 'full';
+  compromiseLevel: 'no_foothold' | 'user_access' | 'root_access' | 'domain_admin' | 'fully_compromised';
   category?: string;
   projectId?: string; // Association avec un projet
   // Legacy credentials format (still supported for backward compatibility)
@@ -81,7 +81,7 @@ export interface Vulnerability {
 
 export interface Credential {
   id: string;
-  type: 'username' | 'password' | 'hash' | 'ssh_key' | 'token' | 'cookie' | 'other';
+  type: 'username' | 'password' | 'hash' | 'ssh_key' | 'token' | 'cookie' | 'credential_pair' | 'other';
   username?: string;
   password?: string;
   hash?: string;

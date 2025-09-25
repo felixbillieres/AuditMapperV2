@@ -1,60 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Input } from '../../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { Trophy, ListTodo, Timer, Trash2, Download, Upload, Search, Filter } from 'lucide-react';
+import { Trophy, ListTodo, Timer, Trash2, Search, Filter } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useHTBStore, type HTBProject } from '../../../stores/htbStore';
 
-// Composant pour les quotes aléatoires
-const QuoteRotator: React.FC = () => {
-  const quotes = [
-    "La douleur que tu ressens aujourd'hui sera ta force demain. — Anonyme",
-    "La qualité n'est jamais un accident ; c'est toujours le résultat d'un effort intelligent. — John Ruskin",
-    "Ce que tu penses de toi-même est bien plus important que ce que les autres pensent de toi. — Sénèque",
-    "Celui qui déplace une montagne commence par déplacer de petites pierres. — Confucius",
-    "La discipline est le pont entre les objectifs et l'accomplissement. — Jim Rohn",
-    "Le succès, c'est la somme de petits efforts répétés jour après jour. — Robert Collier",
-    "Le vrai voyage d'exploration ne consiste pas à chercher de nouveaux paysages, mais à avoir de nouveaux yeux. — Marcel Proust",
-    "L'excellence n'est pas un acte, mais une habitude. — Aristote",
-    "Si tu veux quelque chose que tu n'as jamais eu, fais quelque chose que tu n'as jamais fait. — Thomas Jefferson",
-    "Tu n'échoues jamais tant que tu n'abandonnes pas. — Anonyme",
-    "La perfection n'est pas atteignable, mais en la poursuivant, on peut atteindre l'excellence. — Vince Lombardi",
-    "Le travail bat le talent quand le talent ne travaille pas assez. — Tim Notke",
-    "Maîtriser les autres, c'est la force. Se maîtriser soi-même, c'est le pouvoir. — Lao Tseu",
-    "Visez la lune. Même si vous la manquez, vous atteindrez les étoiles. — Norman Vincent Peale",
-    "L'obstacle est le chemin. — Marc Aurèle",
-    "Deviens la meilleure version de toi-même, pas une copie de quelqu'un d'autre. — Anonyme",
-    "Aucun raccourci ne mène à un endroit qui en vaille la peine. — Beverly Sills",
-    "J'estime que les souffrances du temps présent ne sauraient être comparées à la gloire à venir qui sera révélée pour nous. - Romans 8:18"
-  ];
-
-  const [currentQuote, setCurrentQuote] = useState(() => Math.floor(Math.random() * quotes.length));
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Éviter de répéter la même quote deux fois de suite
-      let newIndex;
-      do {
-        newIndex = Math.floor(Math.random() * quotes.length);
-      } while (newIndex === currentQuote && quotes.length > 1);
-      
-      setCurrentQuote(newIndex);
-    }, 30000); // Change toutes les 30 secondes
-
-    return () => clearInterval(interval);
-  }, [currentQuote, quotes.length]);
-
-  return (
-    <div className="text-center">
-      <blockquote className="text-slate-200 italic text-sm leading-relaxed">
-        &ldquo;{quotes[currentQuote]}&rdquo;
-      </blockquote>
-    </div>
-  );
-};
 
 interface DashboardProps {
   projects: HTBProject[];
@@ -78,7 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSetCreateModalOpen 
 }) => {
   const [, setSearchParams] = useSearchParams();
-  const { deleteProject, closeProject, exportProject, exportProfile, importProject, importProfile } = useHTBStore();
+  const { deleteProject, closeProject, exportProject } = useHTBStore();
   
   // États pour la recherche et les filtres
   const [searchTerm, setSearchTerm] = useState('');
@@ -197,18 +150,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <CardTitle className="text-slate-100">Mood du jour</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center">
-            <div className="relative w-48 h-48">
+          <div className="flex items-center justify-center h-full min-h-[300px]">
+            <div className="relative w-full h-full max-w-sm max-h-sm">
               <img 
                 src="/1.png" 
                 alt="mood"
                 className="w-full h-full object-contain"
               />
             </div>
-          </div>
-          {/* Quote du moment sous l'image */}
-          <div className="mt-4 pt-4 border-t border-slate-600">
-            <QuoteRotator />
           </div>
         </CardContent>
       </Card>
@@ -270,79 +219,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </CardContent>
       </Card>
 
-      {/* Historique des boxes */}
-      <Card className="border-slate-700 bg-slate-800">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-slate-100 text-sm">Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-            onClick={() => onSetCreateModalOpen(true)}
-          >
-            + Nouveau Projet
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-            onClick={() => {
-              const data = exportProfile();
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url; a.download = `htb_profile_${new Date().toISOString().slice(0,10)}.json`;
-              document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-            }}
-          >
-            <Download className="w-4 h-4 mr-2" /> Export Profil
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-            onClick={async () => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.project.json';
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) {
-                  const text = await file.text();
-                  const data = JSON.parse(text);
-                  importProject(data);
-                }
-              };
-              input.click();
-            }}
-          >
-            <Upload className="w-4 h-4 mr-2" /> Import Projet (.project.json)
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="w-full bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
-            onClick={async () => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.json';
-              input.onchange = async (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) {
-                  const text = await file.text();
-                  const data = JSON.parse(text);
-                  importProfile(data);
-                }
-              };
-              input.click();
-            }}
-          >
-            <Upload className="w-4 h-4 mr-2" /> Import Profil
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Historique des boxes */}
       <Card className="lg:col-span-3 border-slate-700 bg-slate-800">

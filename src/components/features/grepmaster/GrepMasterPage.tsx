@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import InfoModal from '@/components/ui/InfoModal';
+import HostSelectionModal from './HostSelectionModal';
 import { useHostStore } from '@/stores/hostStore';
 
 type QuickType = 'users' | 'hashes' | 'passwords' | 'domains' | 'ips' | 'emails';
-type AdvancedType = 'credentials' | 'kerberos' | 'secrets' | 'machineAccounts' | 'services' | 'ports';
+type AdvancedType = 'credentials' | 'kerberos' | 'secrets' | 'machineAccounts' | 'services' | 'ports' | 'ntlm' | 'aes' | 'sam' | 'lsass';
 type ExtractionType = QuickType | AdvancedType;
 
 const OUTPUT_TYPES = [
@@ -39,6 +40,10 @@ const typeNames: Record<ExtractionType, string> = {
   machineAccounts: 'Comptes Machine',
   services: 'Services',
   ports: 'Ports',
+  ntlm: 'Hashes NTLM',
+  aes: 'Clés AES',
+  sam: 'SAM Hashes',
+  lsass: 'LSASS Credentials',
 };
 
 const GrepMasterPage: React.FC = () => {
@@ -50,45 +55,270 @@ const GrepMasterPage: React.FC = () => {
   const [format, setFormat] = useState<'list'|'hashcat'|'john'|'csv'|'json'>('list');
   const [expanded, setExpanded] = useState<{ input: boolean; quick: boolean; results: boolean }>({ input: true, quick: true, results: true });
   const [about, setAbout] = useState(false);
+  const [showTestData, setShowTestData] = useState(false);
+  const [showHostSelection, setShowHostSelection] = useState(false);
   const { hosts, updateHost } = useHostStore();
   const [targetHostId, setTargetHostId] = useState<string>('');
 
   const lines = useMemo(() => raw.split('\n').filter(l => l.trim()).length, [raw]);
   const chars = useMemo(() => raw.length, [raw]);
 
-  // Détection basique (placeholder, léger)
+  // Détection améliorée des types d'outputs
   useEffect(() => {
     if (outputType !== 'auto') { setDetected(outputType); return; }
-    const tests: Array<{t: string; r: RegExp}> = [
-      { t: 'secretsdump', r: /^[^:]+:\d+:[a-fA-F0-9]{32}:[a-fA-F0-9]{32}:::/m },
-      { t: 'mimikatz', r: /\*\s*Username\s*:/i },
-      { t: 'netexec', r: /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+.*-Username-.*-Last PW Set-/m },
-      { t: 'nmap', r: /Nmap scan report|PORT\s+STATE\s+SERVICE/i },
-      { t: 'passwd', r: /^[^:]+:x:\d+:\d+:/m },
-      { t: 'shadow', r: /^[^:]+:\$\d+\$/m },
+    const tests: Array<{t: string; r: RegExp; priority: number}> = [
+      // NetExec/CrackMapExec - patterns plus spécifiques
+      { t: 'netexec', r: /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+.*\[.*\]\s+.*\(Pwn3d!\)/m, priority: 1 },
+      { t: 'netexec', r: /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+.*-Username-.*-Last PW Set-/m, priority: 2 },
+      { t: 'netexec', r: /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+.*\[.*\]\s+.*\(.*\)/m, priority: 3 },
+      { t: 'netexec', r: /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+.*\[.*\]/m, priority: 4 },
+      
+      // Secretsdump - patterns SAM/LSA
+      { t: 'secretsdump', r: /^[^:]+:\d+:[a-fA-F0-9]{32}:[a-fA-F0-9]{32}:::/m, priority: 1 },
+      { t: 'secretsdump', r: /\[.*\]\s+Dumping\s+(SAM|LSA)\s+secrets/i, priority: 2 },
+      
+      // Mimikatz - patterns plus spécifiques
+      { t: 'mimikatz', r: /\*\s*Username\s*:\s*[^\r\n]+[\r\n]*\*\s*Domain\s*:\s*[^\r\n]+[\r\n]*\*\s*NTLM\s*:\s*[a-fA-F0-9]{32}/i, priority: 1 },
+      { t: 'mimikatz', r: /\*\s*Username\s*:\s*[^\r\n]+[\r\n]*\*\s*Password\s*:\s*[^\r\n]+/i, priority: 2 },
+      { t: 'mimikatz', r: /\*\s*Username\s*:/i, priority: 3 },
+      
+      // Nmap
+      { t: 'nmap', r: /Nmap scan report|PORT\s+STATE\s+SERVICE/i, priority: 1 },
+      
+      // Linux passwd/shadow
+      { t: 'passwd', r: /^[^:]+:x:\d+:\d+:/m, priority: 1 },
+      { t: 'shadow', r: /^[^:]+:\$\d+\$/m, priority: 1 },
+      
+      // DPAPI/LSA secrets
+      { t: 'dpapi', r: /dpapi_machinekey|dpapi_userkey/i, priority: 1 },
+      { t: 'lsa', r: /LSA\s+secrets|masterkey/i, priority: 1 },
     ];
-    const found = tests.find(tt => tt.r.test(raw));
+    
+    // Trier par priorité (plus spécifique = priorité plus basse)
+    const sortedTests = tests.sort((a, b) => a.priority - b.priority);
+    const found = sortedTests.find(tt => tt.r.test(raw));
     setDetected(found?.t || 'generic');
   }, [raw, outputType]);
 
-  // Compteurs rapides
+  // Compteurs rapides améliorés
   const quickCounts = useMemo(() => {
     const counts: Record<QuickType, number> = { users: 0, hashes: 0, passwords: 0, domains: 0, ips: 0, emails: 0 };
     if (!raw.trim()) return counts;
-    // users (faible signal, mais utile)
-    counts.users = (raw.match(/(?:user|username|login)[\s:=]+([a-zA-Z0-9_.-]+)/gi) || []).length;
-    // hashes
-    counts.hashes = (raw.match(/[a-fA-F0-9]{32,64}/g) || []).length;
-    // passwords
-    counts.passwords = (raw.match(/(?:password|pass|pwd)[\s:=]+([^\s\r\n]+)/gi) || []).length;
-    // domains
-    counts.domains = (raw.match(/(?:domain|realm)[\s:=]+([a-zA-Z0-9\-.]+)/gi) || []).length;
-    // ips
+    
+    // Users - patterns améliorés
+    const userPatterns = [
+      // NetExec format: SMB IP PORT HOST USERNAME ...
+      /^SMB\s+[\d\.]+\s+\d+\s+\w+\s+([a-zA-Z0-9\._-]+)\s+(?:\d{4}-\d{2}-\d{2}|<never>)/gm,
+      // Mimikatz format: * Username : user
+      /\*\s*Username\s*:\s*([a-zA-Z0-9_.-]+)/gi,
+      // Secretsdump format: user:rid:...
+      /^([^:]+):\d+:[a-fA-F0-9]{32}:[a-fA-F0-9]{32}:::/gm,
+      // Domain\user format
+      /([a-zA-Z0-9_.-]+)\\([a-zA-Z0-9_.-]+)/g,
+      // Service accounts with $
+      /([a-zA-Z0-9_.-]+\$)/g,
+      // Generic patterns
+      /(?:user|username|login)[\s:=]+([a-zA-Z0-9_.-]+)/gi
+    ];
+    
+    const users = new Set<string>();
+    userPatterns.forEach(pattern => {
+      const matches = raw.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          let username = match;
+          if (match.includes(':')) {
+            username = match.split(':')[0];
+          } else if (match.includes('\\')) {
+            username = match.split('\\')[1] || match.split('\\')[0];
+          } else if (match.includes('Username:')) {
+            username = match.replace(/Username:\s*/i, '');
+          }
+          if (username && username.trim() && !username.match(/^\d+$/) && 
+              !username.includes('-Username-') && 
+              !username.includes('-Last') &&
+              !username.includes('-BadPW-')) {
+            users.add(username.trim());
+          }
+        });
+      }
+    });
+    counts.users = users.size;
+    
+    // Hashes - patterns améliorés
+    const hashPatterns = [
+      // NTLM hashes (32 hex chars)
+      /[a-fA-F0-9]{32}/g,
+      // SHA1 hashes (40 hex chars)
+      /[a-fA-F0-9]{40}/g,
+      // SHA256 hashes (64 hex chars)
+      /[a-fA-F0-9]{64}/g,
+      // Kerberos hashes
+      /\$krb5\w+\$[^\s]+/gi,
+      // Unix crypt hashes
+      /\$(?:1|2[aby]?|5|6)\$[^\s:]{1,}\$[^\s:]{1,}/g
+    ];
+    
+    const hashes = new Set<string>();
+    hashPatterns.forEach(pattern => {
+      const matches = raw.match(pattern);
+      if (matches) {
+        matches.forEach(hash => {
+          const lowerHash = hash.toLowerCase();
+          if (lowerHash !== '31d6cfe0d16ae931b73c59d7e0c089c0' && 
+              lowerHash !== 'aad3b435b51404eeaad3b435b51404ee' &&
+              lowerHash !== '00000000000000000000000000000000' &&
+              hash.length >= 8) {
+            hashes.add(hash);
+          }
+        });
+      }
+    });
+    counts.hashes = hashes.size;
+    
+    // Passwords - patterns améliorés
+    const passwordPatterns = [
+      // Mimikatz format: * Password : pass
+      /\*\s*Password\s*:\s*([^\r\n]+)/gi,
+      // LSASS format: Password: pass
+      /Password:\s*([^\r\n]+)/gi,
+      // DPAPI credentials: [CREDENTIAL] Domain:user:password
+      /\[CREDENTIAL\]\s+[^:]+:\s*([^:]+):([^\s]+)/gi,
+      // Plain text passwords
+      /(?:plain_password|password_hex):\s*([^\s]+)/gi,
+      // Generic patterns
+      /(?:password|pass|pwd)[\s:=]+([^\s\r\n]+)/gi
+    ];
+    
+    const passwords = new Set<string>();
+    passwordPatterns.forEach(pattern => {
+      const matches = raw.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          let password = match;
+          if (match.includes('Password:')) {
+            password = match.replace(/Password:\s*/i, '');
+          } else if (match.includes('Password :')) {
+            password = match.replace(/\*\s*Password\s*:\s*/i, '');
+          } else if (match.includes(':')) {
+            password = match.split(':').pop() || match;
+          }
+          if (password && password.trim() && 
+              password !== '(null)' && 
+              password !== 'null' && 
+              password.length > 0) {
+            passwords.add(password.trim());
+          }
+        });
+      }
+    });
+    counts.passwords = passwords.size;
+    
+    // Domains - patterns améliorés
+    const domainPatterns = [
+      // Domain\username format
+      /([a-zA-Z0-9\-.]+)\\[a-zA-Z0-9_.-]+/g,
+      // Mimikatz format: * Domain : domain
+      /\*\s*Domain\s*:\s*([a-zA-Z0-9\-.]+)/gi,
+      // FQDN patterns
+      /([a-zA-Z0-9\-.]+\.(?:local|lan|corp|internal|domain))/gi,
+      // Generic patterns
+      /(?:domain|realm)[\s:=]+([a-zA-Z0-9\-.]+)/gi
+    ];
+    
+    const domains = new Set<string>();
+    domainPatterns.forEach(pattern => {
+      const matches = raw.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          let domain = match;
+          if (match.includes('Domain:')) {
+            domain = match.replace(/Domain:\s*/i, '');
+          } else if (match.includes('\\')) {
+            domain = match.split('\\')[0];
+          }
+          if (domain && domain.trim() && domain.length > 1) {
+            domains.add(domain.trim());
+          }
+        });
+      }
+    });
+    counts.domains = domains.size;
+    
+    // IPs - pattern existant (déjà bon)
     counts.ips = (raw.match(/\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b/g) || []).length;
-    // emails
+    
+    // Emails - pattern existant (déjà bon)
     counts.emails = (raw.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || []).length;
+    
     return counts;
   }, [raw]);
+
+  // Données de test fictives
+  const testData = {
+    netexec: `└─# nxc smb 172.16.1.200 -u Administrator -H 8f6aaf1438d78c89c4636179e3ae18ea --sam --lsa --dpapi       
+SMB         172.16.1.200    445    DC0              [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC0) (domain:LAB.OFFSHORE.LOCAL) (signing:True) (SMBv1:False)
+SMB         172.16.1.200    445    DC0              [+] LAB.OFFSHORE.LOCAL\\Administrator:8f6aaf1438d78c89c4636179e3ae18ea (Pwn3d!)
+SMB         172.16.1.200    445    DC0              [*] Dumping SAM hashes
+SMB         172.16.1.200    445    DC0              Administrator:500:aad3b435b51404eeaad3b435b51404ee:797952ec54e1c3cbecafa37ff2f1bae5:::
+SMB         172.16.1.200    445    DC0              Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+SMB         172.16.1.200    445    DC0              DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+SMB         172.16.1.200    445    DC0              [+] Added 3 SAM hashes to the database
+SMB         172.16.1.200    445    DC0              [+] Dumping LSA secrets
+SMB         172.16.1.200    445    DC0              LAB\\DC0$:aes256-cts-hmac-sha1-96:1626c12b06a74d1c43d1d3b6999a5e05cc6f099a184a96f2e31d6a5395854b64
+SMB         172.16.1.200    445    DC0              LAB\\DC0$:aes128-cts-hmac-sha1-96:2bd3c51fa505ad3d3a13738eba86e3a6
+SMB         172.16.1.200    445    DC0              LAB\\DC0$:des-cbc-md5:07fbe6e0cbd5d0f4
+SMB         172.16.1.200    445    DC0              LAB\\DC0$:plain_password_hex:6100690020003c003a007a007500640025005000680040005d0029004c00330053007500350053005b0034004a006800390021006800280065005100670067003d004f004a002f00710043005f006100280053003d0069005a003f00570034006e005b005d00390072003d0065007a006600450064002f007a004d00250045005b006b005b0029004d002200540052005f0064006b006f003a0034003b0042004f002500200038003b0046005b004a00500066005b003f0026006f006a002f0046005000670035006500340076003d004000690035003b005c003d0047003f00690020003c0055002c005d0026003200
+SMB         172.16.1.200    445    DC0              LAB\\DC0$:aad3b435b51404eeaad3b435b51404ee:b71998e6fd5e3597d4d1abae659f7e68:::
+SMB         172.16.1.200    445    DC0              dpapi_machinekey:0x836190a58db353b803aaba63897fe7424ba403fa
+SMB         172.16.1.200    445    DC0              dpapi_userkey:0x04505586f313bd7ee23600b64415690268e2e880
+SMB         172.16.1.200    445    DC0              [+] Dumped 6 LSA secrets to /root/.nxc/logs/lsa/DC0_172.16.1.200_2025-08-18_151555.secrets and /root/.nxc/logs/lsa/DC0_172.16.1.200_2025-08-18_151555.cached
+SMB         172.16.1.200    445    DC0              [+] User is Domain Administrator, exporting domain backupkey...
+SMB         172.16.1.200    445    DC0              [*] Collecting DPAPI masterkeys, grab a coffee and be patient...
+SMB         172.16.1.200    445    DC0              [+] Got 10 decrypted masterkeys. Looting secrets...
+SMB         172.16.1.200    445    DC0              [SYSTEM][CREDENTIAL] Domain:batch=TaskScheduler:Task:{AF2873AC-B9DE-4DD7-A0ED-8BF33B64371A} - LAB\\Administrator:Adm1n_to_j03s_t3st_d0main!`,
+    
+    mimikatz: `mimikatz # sekurlsa::logonpasswords
+
+Authentication Id : 0 ; 123456 (00000000:0001e240)
+Session           : Interactive from 1
+User Name         : Administrator
+Domain            : LAB
+Logon Server      : DC0
+Logon Time        : 18/08/2025 15:15:55
+SID               : S-1-5-21-1234567890-1234567890-1234567890-500
+        * Username : Administrator
+        * Domain   : LAB
+        * NTLM     : 8f6aaf1438d78c89c4636179e3ae18ea
+        * SHA1     : 1234567890abcdef1234567890abcdef12345678
+        * Password : Adm1n_to_j03s_t3st_d0main!
+        * DPAPI    : 1234567890abcdef1234567890abcdef12345678
+
+Authentication Id : 0 ; 789012 (00000000:000c0a8c)
+Session           : Interactive from 1
+User Name         : Guest
+Domain            : LAB
+Logon Server      : DC0
+Logon Time        : 18/08/2025 15:15:55
+SID               : S-1-5-21-1234567890-1234567890-1234567890-501
+        * Username : Guest
+        * Domain   : LAB
+        * NTLM     : 31d6cfe0d16ae931b73c59d7e0c089c0
+        * SHA1     : 31d6cfe0d16ae931b73c59d7e0c089c0
+        * Password : (null)`,
+    
+    secretsdump: `[*] Dumping SAM hashes
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:797952ec54e1c3cbecafa37ff2f1bae5:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+WDAGUtilityAccount:504:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+
+[*] Dumping LSA secrets
+LAB\\DC0$:aes256-cts-hmac-sha1-96:1626c12b06a74d1c43d1d3b6999a5e05cc6f099a184a96f2e31d6a5395854b64
+LAB\\DC0$:aes128-cts-hmac-sha1-96:2bd3c51fa505ad3d3a13738eba86e3a6
+LAB\\DC0$:des-cbc-md5:07fbe6e0cbd5d0f4
+LAB\\DC0$:aad3b435b51404eeaad3b435b51404ee:b71998e6fd5e3597d4d1abae659f7e68:::`
+  };
 
   // Fonction spécialisée pour extraire les usernames depuis les dumps NetExec
   function extractNetExecUsers(text: string): string[] {
@@ -122,23 +352,180 @@ const GrepMasterPage: React.FC = () => {
     let out: string[] = [];
     switch (type) {
       case 'users': {
+        // Patterns améliorés pour différents types d'outputs
+        const userPatterns = [
+          // Mimikatz format
+          /\*\s*Username\s*:\s*([a-zA-Z0-9_.-]+)/gi,
+          // Secretsdump format (username:rid:...)
+          /^([^:]+):\d+:[a-fA-F0-9]{32}:[a-fA-F0-9]{32}:::/gm,
+          // LSASS dump format
+          /Username:\s*([a-zA-Z0-9_.-]+)/gi,
+          // NetExec format
+          /-Username-([a-zA-Z0-9_.-]+)/gi,
+          // Generic patterns
+          /(?:user|username|login)[\s:=]+([a-zA-Z0-9_.-]+)/gi,
+          // Domain\username format
+          /([a-zA-Z0-9_.-]+)\\([a-zA-Z0-9_.-]+)/g,
+          // Service accounts with $
+          /([a-zA-Z0-9_.-]+\$)/g,
+          // Credential format LAB\user
+          /([a-zA-Z0-9_.-]+)\\([a-zA-Z0-9_.-]+)/g
+        ];
+        
+        const users = new Set<string>();
+        userPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              // Extract username from different formats
+              let username = match;
+              if (match.includes(':')) {
+                username = match.split(':')[0];
+              } else if (match.includes('\\')) {
+                username = match.split('\\')[1] || match.split('\\')[0];
+              } else if (match.includes('Username:')) {
+                username = match.replace(/Username:\s*/i, '');
+              } else if (match.includes('Username :')) {
+                username = match.replace(/\*\s*Username\s*:\s*/i, '');
+              }
+              if (username && username.trim() && !username.match(/^\d+$/)) {
+                users.add(username.trim());
+              }
+            });
+          }
+        });
+        
         // Parser spécifique pour NetExec si détecté
         if (detected === 'netexec') {
-          out = extractNetExecUsers(raw);
-        } else {
-          out = (raw.match(/(?:user|username|login)[\s:=]+([a-zA-Z0-9_.-]+)/gi) || []).map(m => m.split(/[\s:=]+/)[1]);
+          const netexecUsers = extractNetExecUsers(raw);
+          netexecUsers.forEach(user => users.add(user));
         }
+        
+        out = Array.from(users);
         break;
       }
       case 'hashes': {
-        const hexes = (raw.match(/[a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}|[a-fA-F0-9]{128}/g) || [])
-          .filter(h => h.toLowerCase() !== '31d6cfe0d16ae931b73c59d7e0c089c0' && h.toLowerCase() !== 'aad3b435b51404eeaad3b435b51404ee');
-        const unixCrypt = raw.match(/\$(?:1|2[aby]?|5|6)\$[^\s:]{1,}\$[^\s:]{1,}/g) || [];
-        out = Array.from(new Set([...hexes, ...unixCrypt]));
+        // Patterns améliorés pour différents types de hashes
+        const hashPatterns = [
+          // NTLM hashes (32 hex chars)
+          /[a-fA-F0-9]{32}/g,
+          // SHA1 hashes (40 hex chars)
+          /[a-fA-F0-9]{40}/g,
+          // SHA256 hashes (64 hex chars)
+          /[a-fA-F0-9]{64}/g,
+          // Kerberos hashes
+          /\$krb5\w+\$[^\s]+/gi,
+          // Unix crypt hashes
+          /\$(?:1|2[aby]?|5|6)\$[^\s:]{1,}\$[^\s:]{1,}/g,
+          // AES keys (32-128 hex chars)
+          /[a-fA-F0-9]{32,128}/g,
+          // NTLM format from secretsdump
+          /[a-fA-F0-9]{32}:[a-fA-F0-9]{32}/g
+        ];
+        
+        const hashes = new Set<string>();
+        hashPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(hash => {
+              // Filter out common empty/default hashes
+              const lowerHash = hash.toLowerCase();
+              if (lowerHash !== '31d6cfe0d16ae931b73c59d7e0c089c0' && 
+                  lowerHash !== 'aad3b435b51404eeaad3b435b51404ee' &&
+                  lowerHash !== '00000000000000000000000000000000' &&
+                  hash.length >= 8) {
+                hashes.add(hash);
+              }
+            });
+          }
+        });
+        
+        out = Array.from(hashes);
         break;
       }
-      case 'passwords': out = (raw.match(/(?:password|pass|pwd)[\s:=]+([^\s\r\n]+)/gi) || []).map(m => m.split(/[\s:=]+/)[1]); break;
-      case 'domains': out = (raw.match(/(?:domain|realm)[\s:=]+([a-zA-Z0-9\-.]+)/gi) || []).map(m => m.split(/[\s:=]+/)[1]); break;
+      case 'passwords': {
+        // Patterns améliorés pour les mots de passe
+        const passwordPatterns = [
+          // Mimikatz format
+          /\*\s*Password\s*:\s*([^\r\n]+)/gi,
+          // LSASS dump format
+          /Password:\s*([^\r\n]+)/gi,
+          // Generic password patterns
+          /(?:password|pass|pwd)[\s:=]+([^\s\r\n]+)/gi,
+          // Credential format with passwords
+          /([^:]+):([^:]+)@/g,
+          // DPAPI credentials
+          /\[CREDENTIAL\]\s+[^:]+:\s*([^\s]+)/gi,
+          // Plain text passwords in various formats
+          /(?:plain_password|password_hex):\s*([^\s]+)/gi,
+          // NetExec credential format
+          /[^:]+:([^:]+)@[^\s]+/g
+        ];
+        
+        const passwords = new Set<string>();
+        passwordPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              let password = match;
+              if (match.includes('Password:')) {
+                password = match.replace(/Password:\s*/i, '');
+              } else if (match.includes('Password :')) {
+                password = match.replace(/\*\s*Password\s*:\s*/i, '');
+              } else if (match.includes(':')) {
+                password = match.split(':')[1];
+              }
+              if (password && password.trim() && 
+                  password !== '(null)' && 
+                  password !== 'null' && 
+                  password.length > 0) {
+                passwords.add(password.trim());
+              }
+            });
+          }
+        });
+        
+        out = Array.from(passwords);
+        break;
+      }
+      case 'domains': {
+        // Patterns améliorés pour les domaines
+        const domainPatterns = [
+          // Domain\username format
+          /([a-zA-Z0-9\-.]+)\\[a-zA-Z0-9_.-]+/g,
+          // Domain: format
+          /\*\s*Domain\s*:\s*([a-zA-Z0-9\-.]+)/gi,
+          // Generic domain patterns
+          /(?:domain|realm)[\s:=]+([a-zA-Z0-9\-.]+)/gi,
+          // FQDN patterns
+          /([a-zA-Z0-9\-.]+\.(?:local|lan|corp|internal|domain))/gi,
+          // NetExec domain format
+          /[^\\]+\\([^:]+):/g
+        ];
+        
+        const domains = new Set<string>();
+        domainPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              let domain = match;
+              if (match.includes('Domain:')) {
+                domain = match.replace(/Domain:\s*/i, '');
+              } else if (match.includes('Domain :')) {
+                domain = match.replace(/\*\s*Domain\s*:\s*/i, '');
+              } else if (match.includes('\\')) {
+                domain = match.split('\\')[0];
+              }
+              if (domain && domain.trim() && domain.length > 1) {
+                domains.add(domain.trim());
+              }
+            });
+          }
+        });
+        
+        out = Array.from(domains);
+        break;
+      }
       case 'ips': out = Array.from(new Set(raw.match(/\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b/g) || [])); break;
       case 'emails': out = Array.from(new Set((raw.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || []).map(e => e.toLowerCase()))); break;
       // avancé (implémentations simples utiles)
@@ -160,6 +547,129 @@ const GrepMasterPage: React.FC = () => {
         break;
       }
       case 'ports': out = Array.from(new Set((raw.match(/(\d+)\/(?:tcp|udp)\s+open/gi) || []).map(m => m.match(/(\d+)/)?.[1] || ''))).filter(Boolean); break;
+      
+      // Nouveaux types d'extraction spécialisés
+      case 'ntlm': {
+        // Extraction spécifique des hashes NTLM
+        const ntlmPatterns = [
+          // Format secretsdump: user:rid:lm:nt:::
+          /[^:]+:\d+:[a-fA-F0-9]{32}:([a-fA-F0-9]{32}):::/g,
+          // Format mimikatz: * NTLM : hash
+          /\*\s*NTLM\s*:\s*([a-fA-F0-9]{32})/gi,
+          // Format LSASS: Hash (NTLM): hash
+          /Hash\s*\(NTLM\):\s*([a-fA-F0-9]{32})/gi,
+          // Format NetExec: user:hash
+          /[^:]+:([a-fA-F0-9]{32})/g
+        ];
+        
+        const ntlmHashes = new Set<string>();
+        ntlmPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              let hash = match;
+              if (match.includes('NTLM :')) {
+                hash = match.replace(/\*\s*NTLM\s*:\s*/i, '');
+              } else if (match.includes('Hash (NTLM):')) {
+                hash = match.replace(/Hash\s*\(NTLM\):\s*/i, '');
+              } else if (match.includes(':')) {
+                hash = match.split(':').pop() || match;
+              }
+              if (hash && hash.length === 32 && /^[a-fA-F0-9]{32}$/.test(hash)) {
+                ntlmHashes.add(hash);
+              }
+            });
+          }
+        });
+        
+        out = Array.from(ntlmHashes);
+        break;
+      }
+      
+      case 'aes': {
+        // Extraction des clés AES Kerberos
+        const aesPatterns = [
+          // Format: user:aes256-cts-hmac-sha1-96:key
+          /[^:]+:aes256-cts-hmac-sha1-96:([a-fA-F0-9]{64})/g,
+          // Format: user:aes128-cts-hmac-sha1-96:key
+          /[^:]+:aes128-cts-hmac-sha1-96:([a-fA-F0-9]{32})/g,
+          // Format: user:des-cbc-md5:key
+          /[^:]+:des-cbc-md5:([a-fA-F0-9]{16})/g
+        ];
+        
+        const aesKeys = new Set<string>();
+        aesPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              const key = match.split(':').pop();
+              if (key && /^[a-fA-F0-9]+$/.test(key)) {
+                aesKeys.add(key);
+              }
+            });
+          }
+        });
+        
+        out = Array.from(aesKeys);
+        break;
+      }
+      
+      case 'sam': {
+        // Extraction des hashes SAM (format complet)
+        const samPatterns = [
+          // Format complet: user:rid:lm:nt:::
+          /([^:]+):\d+:[a-fA-F0-9]{32}:[a-fA-F0-9]{32}:::/g
+        ];
+        
+        const samHashes = new Set<string>();
+        samPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              if (match && !match.includes('31d6cfe0d16ae931b73c59d7e0c089c0')) {
+                samHashes.add(match);
+              }
+            });
+          }
+        });
+        
+        out = Array.from(samHashes);
+        break;
+      }
+      
+      case 'lsass': {
+        // Extraction des credentials LSASS
+        const lsassPatterns = [
+          // Format: [CREDENTIAL] Domain:user:password
+          /\[CREDENTIAL\]\s+[^:]+:\s*([^:]+):([^\s]+)/gi,
+          // Format: Username: user, Password: password
+          /Username:\s*([^\r\n]+)[\s\S]*?Password:\s*([^\r\n]+)/gi,
+          // Format: * Username : user, * Password : password
+          /\*\s*Username\s*:\s*([^\r\n]+)[\s\S]*?\*\s*Password\s*:\s*([^\r\n]+)/gi
+        ];
+        
+        const lsassCreds = new Set<string>();
+        lsassPatterns.forEach(pattern => {
+          const matches = raw.match(pattern);
+          if (matches) {
+            matches.forEach(match => {
+              if (match.includes(':')) {
+                const parts = match.split(':');
+                if (parts.length >= 2) {
+                  const user = parts[0].replace(/\[CREDENTIAL\]\s+|\*\s*Username\s*:\s*|Username:\s*/gi, '').trim();
+                  const pass = parts[1].replace(/\*\s*Password\s*:\s*|Password:\s*/gi, '').trim();
+                  if (user && pass && pass !== '(null)' && pass !== 'null') {
+                    lsassCreds.add(`${user}:${pass}`);
+                  }
+                }
+              }
+            });
+          }
+        });
+        
+        out = Array.from(lsassCreds);
+        break;
+      }
     }
     // déduplication et nettoyage communs
     out = Array.from(new Set(out.map(v => (v || '').trim()).filter(Boolean)));
@@ -241,7 +751,8 @@ const GrepMasterPage: React.FC = () => {
               <p className="text-slate-400 text-sm">Collez vos outputs et extrayez rapidement les éléments utiles. Parsing avancé à venir.</p>
             </div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => setShowTestData(true)}>🧪 Données de test</Button>
             <Button variant="outline" className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" onClick={() => setAbout(true)}>ℹ️ Comment ça marche</Button>
           </div>
         </div>
@@ -376,36 +887,16 @@ const GrepMasterPage: React.FC = () => {
                 {/* Cible d'injection */}
                 <div className="flex items-center gap-3">
                   <label className="text-sm text-slate-300">Cibler un host</label>
-                  <Select value={targetHostId || '__none__'} onValueChange={(v)=> setTargetHostId(v === '__none__' ? '' : v)}>
-                    <SelectTrigger className="h-8 bg-slate-700 border-slate-600 text-slate-100">
-                      <SelectValue placeholder="Sélectionner un host" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-600 max-h-64 overflow-y-auto">
-                      <SelectItem value="__none__">Aucun</SelectItem>
-                      {Object.values(hosts).map(h => (
-                        <SelectItem key={h.id} value={h.id}>{h.ip} — {h.hostname || 'Sans nom'}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <Button
-                    disabled={!targetHostId || results.length === 0}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={() => {
-                      if (!targetHostId || results.length === 0 || !currentType) return;
-                      const host = Object.values(hosts).find(h => h.id === targetHostId);
-                      if (!host) return;
-                      if (currentType === 'users') {
-                        updateHost(host.id, { usernames: Array.from(new Set([...(host.usernames||[]), ...results])) });
-                      } else if (currentType === 'passwords') {
-                        updateHost(host.id, { passwords: Array.from(new Set([...(host.passwords||[]), ...results])) });
-                      } else if (currentType === 'hashes' || currentType === 'credentials') {
-                        const hashes = currentType === 'credentials' ? results.map(r => r.split(':').pop() || '').filter(Boolean) : results;
-                        updateHost(host.id, { hashes: Array.from(new Set([...(host.hashes||[]), ...hashes])) });
-                      }
-                    }}
+                    disabled={results.length === 0}
+                    onClick={() => setShowHostSelection(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    Injecter dans l'hôte
+                    Sélectionner un host pour injection
                   </Button>
+                  {results.length === 0 && (
+                    <span className="text-xs text-slate-400">Aucun résultat à injecter</span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="text-slate-300 text-sm">Type: <span className="font-medium text-slate-100">{currentType ? typeNames[currentType] : '—'}</span></div>
@@ -462,12 +953,128 @@ const GrepMasterPage: React.FC = () => {
         <ul className="list-disc ml-5 space-y-1">
           <li><strong>UI</strong>: React + composants internes (Cards, Buttons) avec Tailwind.</li>
           <li><strong>Parsing</strong>: heuristiques regex légères par type (users, hashes, passwords, etc.).</li>
-          <li><strong>Détection</strong>: tentative de détection d’output (secretsdump, mimikatz, nmap...).</li>
+          <li><strong>Détection</strong>: tentative de détection d'output (secretsdump, mimikatz, nmap...).</li>
           <li><strong>Cracking</strong>: détection simple de types de hash et génération de commandes Hashcat/John.</li>
           <li><strong>Export</strong>: copie presse‑papiers, formats list/csv/json; à étoffer.</li>
         </ul>
         <p className="text-slate-400">Aucun backend. Tout tourne côté navigateur. Les regex sont simplistes: vérifiez toujours manuellement.</p>
       </InfoModal>
+
+      {/* Modale de données de test */}
+      <InfoModal open={showTestData} onClose={() => setShowTestData(false)} title="Données de test - Grep Master">
+        <div className="space-y-4">
+          <p className="text-slate-300 text-sm">
+            Utilisez ces données fictives pour tester les fonctionnalités de parsing du Grep Master.
+          </p>
+          
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-slate-100 font-semibold mb-2">NetExec/CrackMapExec</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRaw(testData.netexec);
+                  setOutputType('netexec');
+                }}
+                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              >
+                Charger l'output NetExec
+              </Button>
+            </div>
+            
+            <div>
+              <h4 className="text-slate-100 font-semibold mb-2">Mimikatz</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRaw(testData.mimikatz);
+                  setOutputType('mimikatz');
+                }}
+                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              >
+                Charger l'output Mimikatz
+              </Button>
+            </div>
+            
+            <div>
+              <h4 className="text-slate-100 font-semibold mb-2">Secretsdump</h4>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRaw(testData.secretsdump);
+                  setOutputType('secretsdump');
+                }}
+                className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              >
+                Charger l'output Secretsdump
+              </Button>
+            </div>
+          </div>
+          
+          <div className="p-3 bg-slate-800/50 border border-slate-700 rounded">
+            <p className="text-xs text-slate-400">
+              <strong>Note :</strong> Ces données sont fictives et servent uniquement à tester les fonctionnalités de parsing. 
+              Elles contiennent des patterns typiques d'outputs d'outils de pentest.
+            </p>
+          </div>
+        </div>
+      </InfoModal>
+
+      {/* Modale de sélection de host */}
+      <HostSelectionModal
+        isOpen={showHostSelection}
+        onClose={() => setShowHostSelection(false)}
+        onConfirm={(hostId, modifiedOutput) => {
+          if (!currentType) return;
+          
+          const host = hosts[hostId];
+          if (!host) return;
+          
+          // Parser l'output modifié
+          const lines = modifiedOutput.split('\n').filter(line => line.trim());
+          
+          if (currentType === 'users') {
+            updateHost(hostId, { 
+              usernames: Array.from(new Set([...(host.usernames || []), ...lines])) 
+            });
+          } else if (currentType === 'passwords') {
+            updateHost(hostId, { 
+              passwords: Array.from(new Set([...(host.passwords || []), ...lines])) 
+            });
+          } else if (currentType === 'hashes') {
+            updateHost(hostId, { 
+              hashes: Array.from(new Set([...(host.hashes || []), ...lines])) 
+            });
+          } else if (currentType === 'credentials') {
+            // Pour les credentials, extraire les hashes
+            const hashes = lines.map(r => r.split(':').pop() || '').filter(Boolean);
+            updateHost(hostId, { 
+              hashes: Array.from(new Set([...(host.hashes || []), ...hashes])) 
+            });
+          } else if (currentType === 'domains') {
+            // Pour les domaines, on pourrait les ajouter comme tags ou dans un champ spécial
+            const currentTags = host.tags || [];
+            const newTags = lines.map(domain => `domain:${domain}`);
+            updateHost(hostId, { 
+              tags: Array.from(new Set([...currentTags, ...newTags])) 
+            });
+          } else if (currentType === 'ips') {
+            // Pour les IPs, on pourrait les ajouter comme tags
+            const currentTags = host.tags || [];
+            const newTags = lines.map(ip => `ip:${ip}`);
+            updateHost(hostId, { 
+              tags: Array.from(new Set([...currentTags, ...newTags])) 
+            });
+          }
+          
+          setShowHostSelection(false);
+        }}
+        outputToInject={results}
+        extractionType={currentType || ''}
+      />
     </div>
   );
 };

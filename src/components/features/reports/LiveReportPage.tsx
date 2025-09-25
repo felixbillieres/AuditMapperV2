@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import html2pdf from 'html2pdf.js';
+import { AttackPathAnalyzer } from '@/utils/attackPathAnalyzer';
 
 const LiveReportPage: React.FC = () => {
   const { hosts, categories } = useHostStore();
@@ -40,11 +41,25 @@ const LiveReportPage: React.FC = () => {
     return { zones, totalHosts, steps, withExploitation, connections, compromised };
   }, [hostsArray, categories]);
 
+  // Analyse des chemins d'attaque
+  const attackAnalysis = useMemo(() => {
+    const analyzer = new AttackPathAnalyzer(hosts);
+    return analyzer.analyzeAttackPaths();
+  }, [hosts]);
+
   const hostsByCategory = useMemo(() => {
     const map: Record<string, any[]> = {};
     categories.forEach(c => (map[c.id] = []));
     map['uncategorized'] = [];
+    
+    // Utiliser un Set pour éviter les doublons
+    const processedHosts = new Set<string>();
+    
     hostsArray.forEach(h => {
+      // Vérifier si l'hôte n'a pas déjà été traité
+      if (processedHosts.has(h.id)) return;
+      processedHosts.add(h.id);
+      
       const key = h.category && categories.find(c => c.id === h.category) ? h.category : 'uncategorized';
       if (!map[key]) map[key] = [];
       map[key].push(h);
@@ -78,10 +93,13 @@ const LiveReportPage: React.FC = () => {
     const allCats = [...categories, { id: 'uncategorized', name: 'Hors catégorie' } as any];
     allCats.forEach(cat => {
       const catHosts = hostsByCategory[cat.id] || [];
-      rows.push(`- [Zone: ${cat.name}](#zone-${cat.name.replace(/\s+/g,'-')})`);
-      catHosts.forEach(h => {
-        rows.push(`  - [${h.hostname || h.ip} (${h.ip})](#${(h.hostname || h.ip).replace(/\s+/g,'-')}-${h.ip.replace(/\./g,'-')})`);
-      });
+      if (catHosts.length > 0) {
+        rows.push(`- Zone: ${cat.name}`);
+        catHosts.forEach(h => {
+          const hostName = h.hostname || h.ip;
+          rows.push(`  - ${hostName} (${h.ip})`);
+        });
+      }
     });
     return rows;
   };
@@ -105,39 +123,107 @@ const LiveReportPage: React.FC = () => {
     md.push('');
     md.push(`## Topologie & Kill Chain (Synthèse)`);
     md.push(`La topologie s'appuie sur les connexions inter-hôtes documentées. Les pivots potentiels sont détaillés dans les sections hôtes lorsque des connexions sortantes sont observées.`);
+    md.push('');
+    
+    // Analyse des chemins d'attaque
+    if (attackAnalysis.allPaths.length > 0) {
+      md.push(`### Analyse des Chemins d'Attaque`);
+      md.push(`**Points d'entrée identifiés:** ${attackAnalysis.entryPoints.length}`);
+      md.push(`**Cibles potentielles:** ${attackAnalysis.targets.length}`);
+      md.push(`**Chemins d'attaque détectés:** ${attackAnalysis.allPaths.length}`);
+      md.push(`**Chemins critiques:** ${attackAnalysis.criticalPaths.length}`);
+      md.push('');
+      
+      if (attackAnalysis.criticalPaths.length > 0) {
+        md.push(`#### Chemins d'Attaque Critiques`);
+        attackAnalysis.criticalPaths.forEach((path, index) => {
+          md.push(`**${index + 1}. ${path.description}**`);
+          md.push(`- Sévérité: ${path.severity.toUpperCase()}`);
+          md.push(`- Hôtes impliqués: ${path.path.length}`);
+          md.push(`- Étapes:`);
+          path.steps.forEach((step, stepIndex) => {
+            const fromName = hosts[step.fromHost]?.hostname || hosts[step.fromHost]?.ip || step.fromHost;
+            const toName = hosts[step.toHost]?.hostname || hosts[step.toHost]?.ip || step.toHost;
+            md.push(`  ${stepIndex + 1}. ${fromName} → ${toName} (${step.method}) - ${step.severity.toUpperCase()}`);
+          });
+          md.push('');
+        });
+      }
+      
+      if (attackAnalysis.networkSegments.length > 0) {
+        md.push(`#### Segments Réseau`);
+        attackAnalysis.networkSegments.forEach((segment, index) => {
+          md.push(`**Segment ${index + 1}:** ${segment.hosts.length} hôte(s)`);
+          md.push(`- Isolation: ${segment.isolationLevel}`);
+          md.push(`- Risque: ${segment.riskLevel.toUpperCase()}`);
+          md.push(`- Connexions: ${segment.connections.length}`);
+          md.push('');
+        });
+      }
+      
+      if (attackAnalysis.isolatedHosts.length > 0) {
+        md.push(`#### Hôtes Isolés`);
+        md.push(`${attackAnalysis.isolatedHosts.length} hôte(s) sans connexions réseau documentées.`);
+        md.push('');
+      }
+    } else {
+      md.push(`### Analyse des Chemins d'Attaque`);
+      md.push(`Aucun chemin d'attaque complexe détecté. Les hôtes semblent être isolés ou les connexions ne sont pas encore documentées.`);
+      md.push('');
+    }
 
     const allCats = [...categories, { id: 'uncategorized', name: 'Hors catégorie' } as any];
     allCats.forEach(cat => {
       const catHosts = hostsByCategory[cat.id] || [];
       if (catHosts.length === 0) return;
       md.push('');
-      md.push(`### Zone: ${cat.name}`);
+      md.push(`# Zone: ${cat.name}`);
       const zoneSteps = catHosts.reduce((a:number,h:any)=>a+(h.exploitationSteps?.length||0),0);
       md.push(`Cette zone contient ${catHosts.length} hôte(s) et ${zoneSteps} étape(s) d'exploitation documentée(s).`);
+      md.push('');
       catHosts.forEach((h:any) => {
-        md.push('');
-        md.push(`#### ${h.hostname || h.ip} (${h.ip})`);
-        md.push(`- OS: ${h.os || 'Unknown'} | Statut: ${h.status} | Priorité: ${h.priority} | Compromise: ${h.compromiseLevel}`);
+        const hostName = h.hostname || h.ip;
+        const anchorId = `${hostName.replace(/\s+/g,'-').toLowerCase()}-${h.ip.replace(/\./g,'-')}`;
+        md.push(`## ${hostName} (${h.ip})`);
+        md.push(`**OS:** ${h.os || 'Unknown'} | **Statut:** ${h.status} | **Priorité:** ${h.priority} | **Compromise:** ${h.compromiseLevel}`);
         const out = (h.outgoingConnections || []).map((c:any) => `→ ${c.toHostId}${c.cause ? ` (${c.cause})` : ''}`).join(', ');
-        if (out) md.push(`- Connexions sortantes: ${out}`);
-        if (includeNotes && h.notes) { md.push(`- Notes:`); md.push(h.notes.split('\n').map((l:string)=>`  ${l}`).join('\n')); }
+        if (out) md.push(`**Connexions sortantes:** ${out}`);
+        if (includeNotes && h.notes) { 
+          md.push(`**Notes:**`); 
+          md.push(h.notes.split('\n').map((l:string)=>`  ${l}`).join('\n')); 
+        }
         if (h.exploitationSteps?.length) {
-          md.push(`- Étapes d'exploitation:`);
+          md.push(`**Étapes d'exploitation:**`);
+          md.push('');
           h.exploitationSteps.forEach((step:any, idx:number) => {
+            md.push(`**${idx + 1}. ${step.title}**`);
+            if (step.cve) md.push(`- **CVE:** ${step.cve}`);
+            if (step.cvss !== undefined) md.push(`- **CVSS:** ${step.cvss}`);
+            md.push(`- **Sévérité:** ${step.severity} | **Statut:** ${step.status}`);
+            if (step.description) { 
+              md.push(`- **Description:**`); 
+              md.push(step.description.split('\n').map((l:string)=>`  ${l}`).join('\n')); 
+            }
+            if (includeCommands && step.command) { 
+              md.push(`- **Commande:**\n\n\`\`\`bash\n${step.command}\n\`\`\``); 
+            }
+            if (includeOutputs && step.output) { 
+              md.push(`- **Output:**\n\n\`\`\`\n${step.output}\n\`\`\``); 
+            }
+            if (includeScreenshots && step.screenshots?.length) { 
+              md.push(`- **Captures:**`); 
+              step.screenshots.forEach((s:string,i:number)=> md.push(`  ![screenshot-${i+1}](${s})`)); 
+            }
+            if (includeNotes && step.notes) { 
+              md.push(`- **Notes:**`); 
+              md.push(step.notes.split('\n').map((l:string)=>`  ${l}`).join('\n')); 
+            }
             md.push('');
-            md.push(`##### ${idx + 1}. ${step.title}`);
-            if (step.cve) md.push(`- CVE: ${step.cve}`);
-            if (step.cvss !== undefined) md.push(`- CVSS: ${step.cvss}`);
-            md.push(`- Sévérité: ${step.severity} | Statut: ${step.status}`);
-            if (step.description) { md.push(`- Description:`); md.push(step.description.split('\n').map((l:string)=>`  ${l}`).join('\n')); }
-            if (includeCommands && step.command) { md.push(`- Commande:\n\n\`\`\`bash\n${step.command}\n\`\`\``); }
-            if (includeOutputs && step.output) { md.push(`- Output:\n\n\`\`\`\n${step.output}\n\`\`\``); }
-            if (includeScreenshots && step.screenshots?.length) { md.push(`- Captures:`); step.screenshots.forEach((s:string,i:number)=> md.push(`  ![screenshot-${i+1}](${s})`)); }
-            if (includeNotes && step.notes) { md.push(`- Notes:`); md.push(step.notes.split('\n').map((l:string)=>`  ${l}`).join('\n')); }
           });
         } else {
-          md.push(`- Aucune exploitation réalisée pour cet hôte à ce stade.`);
+          md.push(`Aucune exploitation réalisée pour cet hôte à ce stade.`);
         }
+        md.push('');
       });
     });
 
@@ -147,6 +233,24 @@ const LiveReportPage: React.FC = () => {
     md.push(`2. Prioriser la remédiation des vulnérabilités associées aux CVE les plus critiques.`);
     md.push(`3. Restreindre les flux inter-zones identifiés comme pivots potentiels (${stats.connections} connexion(s) tracée(s)).`);
     md.push(`4. Mettre en place une surveillance accrue sur les hôtes avec activités d'exploitation (${stats.withExploitation}).`);
+    
+    // Recommandations basées sur l'analyse des chemins d'attaque
+    if (attackAnalysis.criticalPaths.length > 0) {
+      md.push(`5. **URGENT:** Sécuriser immédiatement les chemins d'attaque critiques identifiés (${attackAnalysis.criticalPaths.length} chemin(s)).`);
+      md.push(`6. Appliquer le principe de moindre privilège sur les connexions inter-hôtes critiques.`);
+    }
+    
+    if (attackAnalysis.entryPoints.length > 0) {
+      md.push(`7. Renforcer la sécurité des points d'entrée identifiés (${attackAnalysis.entryPoints.length} hôte(s)).`);
+    }
+    
+    if (attackAnalysis.targets.length > 0) {
+      md.push(`8. Protéger les cibles sensibles identifiées (${attackAnalysis.targets.length} hôte(s)) avec des contrôles d'accès renforcés.`);
+    }
+    
+    if (attackAnalysis.isolatedHosts.length > 0) {
+      md.push(`9. Vérifier la connectivité des hôtes isolés (${attackAnalysis.isolatedHosts.length} hôte(s)) - ils pourraient être des points d'entrée non documentés.`);
+    }
 
     return md.join('\n');
   };
@@ -204,8 +308,8 @@ const LiveReportPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-dark-950 text-dark-100 overflow-x-hidden overflow-y-auto report-layout">
-      <div className="main-header p-6">
+    <div className="min-h-screen w-full bg-dark-950 text-dark-100 overflow-x-hidden overflow-y-auto report-layout">
+      <div className="main-header p-6 w-full">
         <div className="flex-between mb-6">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="AuditMapper" className="w-8 h-8 rounded-lg opacity-80" />
@@ -273,16 +377,16 @@ const LiveReportPage: React.FC = () => {
         </div>
 
         {/* Zone centrale: grand aperçu */}
-        <div className="content-main p-6">
-          <Card className="border-slate-700 bg-slate-800">
-            <CardHeader>
+        <div className="content-main px-4 py-6 w-full">
+          <Card className="border-slate-700 bg-slate-800 w-full max-w-none mx-0">
+            <CardHeader className="px-6 py-4">
               <CardTitle className="text-slate-100">Aperçu du Rapport</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="w-full px-6 py-4">
               {previewMode === 'preview' ? (
                 <div
                   ref={previewRef}
-                  className="report-pro"
+                  className="report-pro w-full max-w-none"
                   style={{
                     // appliquer préférences de style
                     ['--report-accent' as any]: accentColor,
@@ -298,16 +402,17 @@ const LiveReportPage: React.FC = () => {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeHighlight]}
+                    className="w-full"
                   >
                     {renderMarkdown()}
                   </ReactMarkdown>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 w-full">
                   <div className="flex gap-2">
                     <Button onClick={copyToClipboard} variant="outline" className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"><Copy className="w-4 h-4 mr-1" /> Copier</Button>
                   </div>
-                  <Textarea value={renderMarkdown()} readOnly className="min-h-[60vh] bg-slate-900 border-slate-700 text-slate-100 font-mono text-sm" />
+                  <Textarea value={renderMarkdown()} readOnly className="min-h-[60vh] w-full bg-slate-900 border-slate-700 text-slate-100 font-mono text-sm" />
                 </div>
               )}
             </CardContent>

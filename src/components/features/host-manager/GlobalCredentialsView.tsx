@@ -31,7 +31,7 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
   const allCredentials = React.useMemo(() => {
     const hostArray = Object.values(hosts);
     const credentials: Array<{
-      type: 'username' | 'password' | 'hash' | 'ssh_key' | 'token' | 'cookie' | 'other';
+      type: 'username' | 'password' | 'hash' | 'ssh_key' | 'token' | 'cookie' | 'credential_pair' | 'other';
       value: string;
       hostIp: string;
       hostname?: string;
@@ -39,14 +39,17 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
       comment?: string;
       isValid?: boolean;
       source?: string;
+      username?: string;
+      password?: string;
     }> = [];
 
     hostArray.forEach(host => {
       // Nouveau format structuré
       if (host.credentials && host.credentials.length > 0) {
         host.credentials.forEach(cred => {
-          const value = cred.username || cred.password || cred.hash || '';
-          if (value) {
+          if (cred.type === 'credential_pair') {
+            // Pour les paires de credentials, on affiche username:password
+            const value = `${cred.username}:${cred.password}`;
             credentials.push({
               type: cred.type,
               value: value,
@@ -56,7 +59,23 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
               comment: cred.comment,
               isValid: cred.isValid,
               source: cred.source,
+              username: cred.username,
+              password: cred.password,
             });
+          } else {
+            const value = cred.username || cred.password || cred.hash || '';
+            if (value) {
+              credentials.push({
+                type: cred.type,
+                value: value,
+                hostIp: host.ip,
+                hostname: host.hostname,
+                domain: cred.domain,
+                comment: cred.comment,
+                isValid: cred.isValid,
+                source: cred.source,
+              });
+            }
           }
         });
       }
@@ -118,6 +137,7 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
     usernames: filteredCredentials.filter(c => c.type === 'username'),
     passwords: filteredCredentials.filter(c => c.type === 'password'),
     hashes: filteredCredentials.filter(c => c.type === 'hash'),
+    credential_pairs: filteredCredentials.filter(c => c.type === 'credential_pair'),
     ssh_keys: filteredCredentials.filter(c => c.type === 'ssh_key'),
     tokens: filteredCredentials.filter(c => c.type === 'token'),
     cookies: filteredCredentials.filter(c => c.type === 'cookie'),
@@ -149,6 +169,14 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
         value: c.value,
         host: c.hostIp,
         hostname: c.hostname
+      })),
+      credential_pairs: credentialsByType.credential_pairs.map(c => ({
+        username: c.username,
+        password: c.password,
+        domain: c.domain,
+        host: c.hostIp,
+        hostname: c.hostname,
+        comment: c.comment
       })),
     };
 
@@ -354,6 +382,77 @@ export const GlobalCredentialsView: React.FC<GlobalCredentialsViewProps> = ({
                   ))}
                   {credentialsByType.hashes.length === 0 && (
                     <p className="text-slate-500 text-sm italic">Aucun hash trouvé</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Paires de Credentials */}
+              <Card className="border-slate-700 bg-slate-800">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-purple-400 flex items-center gap-2">
+                      🔗 Paires de Credentials ({credentialsByType.credential_pairs.length})
+                    </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyAllByType('credential_pairs')}
+                      className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copier tout
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                  {credentialsByType.credential_pairs.map((cred, index) => (
+                    <div key={index} className="p-3 bg-slate-700/50 rounded text-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-green-500" />
+                          <span className="text-slate-100 font-medium text-xs">Credentials valides</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(cred.value)}
+                          className="bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500 p-1"
+                        >
+                          📋
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 w-16 text-xs">User:</span>
+                          <span className="text-blue-400 font-mono text-xs">{cred.username}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 w-16 text-xs">Pass:</span>
+                          <span className="text-yellow-400 font-mono text-xs">
+                            {showPasswords ? cred.password : '••••••••'}
+                          </span>
+                        </div>
+                        {cred.domain && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 w-16 text-xs">Domain:</span>
+                            <span className="text-slate-300 font-mono text-xs">{cred.domain}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 w-16 text-xs">Host:</span>
+                          <span className="text-slate-300 text-xs">{cred.hostname || cred.hostIp}</span>
+                        </div>
+                        {cred.comment && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 w-16 text-xs">Note:</span>
+                            <span className="text-slate-300 text-xs">{cred.comment}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {credentialsByType.credential_pairs.length === 0 && (
+                    <p className="text-slate-500 text-sm italic">Aucune paire de credentials trouvée</p>
                   )}
                 </CardContent>
               </Card>

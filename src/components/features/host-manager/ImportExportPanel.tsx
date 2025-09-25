@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { X, Download, Upload, FileText, Trash2, Server, Folder, FolderOpen, Copy, Check, FileArchive, FileText as Report, Network, Key, AlertTriangle, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SuccessModal } from '@/components/ui/SuccessModal';
+import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal';
 
 import { Textarea } from '@/components/ui/textarea';
 
@@ -79,6 +81,14 @@ export const ImportExportPanel: React.FC<ImportExportPanelProps> = ({
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [exportPreviewPaths, setExportPreviewPaths] = useState<string[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successDetails, setSuccessDetails] = useState<{
+    importedCount: number;
+    mode: 'replace' | 'merge';
+    options: { hosts: boolean; categories: boolean; networkNodes: boolean };
+  } | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [importFileTreePaths, setImportFileTreePaths] = useState<string[]>([]);
 
   // Helpers: construire un arbre (objet imbriqué) à partir d'une liste de chemins
@@ -1066,20 +1076,17 @@ ${exportData.reports.network}
 
       console.log('Import terminé avec succès. Éléments importés:', importedCount);
       
-      // Message de succès détaillé
-      const successMessage = `✅ Import terminé avec succès!\n\n` +
-        `📊 Résumé:\n` +
-        `• ${importedCount} éléments importés\n` +
-        `• Mode: ${importMode === 'replace' ? 'Remplacement' : 'Fusion'}\n` +
-        `• Hôtes: ${importOptions.hosts ? 'Oui' : 'Non'}\n` +
-        `• Catégories: ${importOptions.categories ? 'Oui' : 'Non'}\n` +
-        `• Nœuds réseau: ${importOptions.networkNodes ? 'Oui' : 'Non'}`;
+      // Afficher le modal de succès
+      setSuccessDetails({
+        importedCount,
+        mode: importMode,
+        options: importOptions
+      });
+      setShowSuccessModal(true);
       
-      alert(successMessage);
       setImportPreview(null);
       setImportDataState('');
       setSelectedFile(null);
-      onClose();
     } catch (error) {
       console.error('Erreur lors de l\'import:', error);
       alert(`❌ Erreur lors de l'import: ${error instanceof Error ? error.message : 'Erreur inconnue'}\n\nLes données partiellement importées peuvent être présentes.`);
@@ -1087,9 +1094,19 @@ ${exportData.reports.network}
   };
 
   const handleClearAllData = () => {
-    if (confirm('⚠️ Êtes-vous sûr de vouloir supprimer toutes les données ? Cette action est irréversible.')) {
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
       clearAllData();
+      setShowDeleteModal(false);
       onClose();
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1551,6 +1568,34 @@ ${exportData.reports.network}
           </CardContent>
         </Card>
       </motion.div>
+      
+      {/* Modal de succès pour l'import */}
+      <SuccessModal
+        open={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          setSuccessDetails(null);
+          onClose();
+        }}
+        title="Import réussi !"
+        message="Vos données ont été importées avec succès dans le projet."
+        details={successDetails}
+      />
+      
+      {/* Modal de confirmation pour la suppression */}
+      <ConfirmDeleteModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        title="Confirmer la suppression"
+        message="Êtes-vous sûr de vouloir supprimer toutes les données ? Cette action est irréversible et supprimera définitivement tous les hôtes, catégories et nœuds réseau."
+        details={{
+          hostsCount: hostsArray.length,
+          categoriesCount: Object.keys(categories).length,
+          networkNodesCount: Object.keys(networkNodes).length
+        }}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

@@ -71,7 +71,16 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [newPassOpen, setNewPassOpen] = useState(false);
   const [newHashOpen, setNewHashOpen] = useState(false);
+  const [newCredentialPairOpen, setNewCredentialPairOpen] = useState(false);
   const [editingExploitationStep, setEditingExploitationStep] = useState<any>(null);
+
+  // États pour la paire de credentials
+  const [newCredentialPair, setNewCredentialPair] = useState({
+    username: '',
+    password: '',
+    domain: '',
+    comment: ''
+  });
 
   
   // États pour l'édition des informations de base
@@ -140,6 +149,35 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
   const handleRemoveHash = (index: number) => {
     const newHashes = currentHost.hashes?.filter((_, i) => i !== index) || [];
     handleUpdateHost(currentHost.id, { hashes: newHashes });
+  };
+
+  const handleAddCredentialPair = () => {
+    if (!newCredentialPair.username || !newCredentialPair.password) return;
+    
+    const newCredential = {
+      id: `cred_pair_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'credential_pair' as const,
+      username: newCredentialPair.username,
+      password: newCredentialPair.password,
+      domain: newCredentialPair.domain || undefined,
+      comment: newCredentialPair.comment || undefined,
+      isValid: true,
+      source: 'manual',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedCredentials = [...(currentHost.credentials || []), newCredential];
+    handleUpdateHost(currentHost.id, { credentials: updatedCredentials });
+    
+    // Reset form
+    setNewCredentialPair({ username: '', password: '', domain: '', comment: '' });
+    setNewCredentialPairOpen(false);
+  };
+
+  const handleRemoveCredentialPair = (credentialId: string) => {
+    const updatedCredentials = (currentHost.credentials || []).filter(cred => cred.id !== credentialId);
+    handleUpdateHost(currentHost.id, { credentials: updatedCredentials });
   };
 
   const handleSaveBasicInfo = () => {
@@ -479,20 +517,29 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="none">Aucun</SelectItem>
-                                <SelectItem value="initial">Initial</SelectItem>
-                                <SelectItem value="partial">Partiel</SelectItem>
-                                <SelectItem value="full">Complet</SelectItem>
+                                <SelectItem value="no_foothold">Pas d'accès</SelectItem>
+                                <SelectItem value="user_access">Accès utilisateur</SelectItem>
+                                <SelectItem value="root_access">Accès root/admin</SelectItem>
+                                <SelectItem value="domain_admin">Administrateur de domaine</SelectItem>
+                                <SelectItem value="fully_compromised">Entièrement compromis</SelectItem>
                               </SelectContent>
                             </Select>
                           ) : (
                             <div className="flex items-center gap-2">
                               <div className={`w-2 h-2 rounded-full ${
-                                currentHost.compromiseLevel === 'full' ? 'bg-red-500' : 
-                                currentHost.compromiseLevel === 'partial' ? 'bg-orange-500' : 
-                                currentHost.compromiseLevel === 'initial' ? 'bg-yellow-500' : 'bg-green-500'
+                                currentHost.compromiseLevel === 'fully_compromised' ? 'bg-red-500' : 
+                                currentHost.compromiseLevel === 'domain_admin' ? 'bg-orange-500' : 
+                                currentHost.compromiseLevel === 'root_access' ? 'bg-yellow-500' : 
+                                currentHost.compromiseLevel === 'user_access' ? 'bg-blue-500' : 'bg-green-500'
                               }`} />
-                              <span className="text-slate-100 capitalize">{currentHost.compromiseLevel}</span>
+                              <span className="text-slate-100">
+                                {currentHost.compromiseLevel === 'no_foothold' ? 'Pas d\'accès' :
+                                 currentHost.compromiseLevel === 'user_access' ? 'Accès utilisateur' :
+                                 currentHost.compromiseLevel === 'root_access' ? 'Accès root/admin' :
+                                 currentHost.compromiseLevel === 'domain_admin' ? 'Administrateur de domaine' :
+                                 currentHost.compromiseLevel === 'fully_compromised' ? 'Entièrement compromis' :
+                                 currentHost.compromiseLevel}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -663,7 +710,7 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
                       Voir toutes les vulnérabilités
                     </Button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Usernames */}
                     <Card className="bg-slate-800 border-slate-700">
                       <CardHeader>
@@ -759,6 +806,76 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
                               </Button>
                             </div>
                           )) || <p className="text-slate-400 text-sm">Aucun hash</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Paires de Credentials */}
+                    <Card className="bg-slate-800 border-slate-700">
+                      <CardHeader>
+                        <CardTitle className="text-slate-100 flex items-center justify-between">
+                          Paires de Credentials ({(currentHost.credentials || []).filter(c => c.type === 'credential_pair').length})
+                          <Button
+                            size="sm"
+                            onClick={() => setNewCredentialPairOpen(true)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {(currentHost.credentials || [])
+                            .filter(cred => cred.type === 'credential_pair')
+                            .map((cred, index) => (
+                            <div key={cred.id} className="p-3 bg-slate-700/50 rounded">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                                  <span className="text-slate-100 font-medium text-sm">Credentials valides</span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleRemoveCredentialPair(cred.id)}
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-400 w-16">User:</span>
+                                  <span className="text-blue-400 font-mono">{cred.username}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-400 w-16">Pass:</span>
+                                  <span className="text-yellow-400 font-mono">••••••••</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => navigator.clipboard.writeText(cred.password || '')}
+                                    className="text-slate-400 hover:text-slate-300 p-1"
+                                  >
+                                    📋
+                                  </Button>
+                                </div>
+                                {cred.domain && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-400 w-16">Domain:</span>
+                                    <span className="text-slate-300 font-mono">{cred.domain}</span>
+                                  </div>
+                                )}
+                                {cred.comment && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-400 w-16">Note:</span>
+                                    <span className="text-slate-300 text-xs">{cred.comment}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )) || <p className="text-slate-400 text-sm">Aucune paire de credentials</p>}
                         </div>
                       </CardContent>
                     </Card>
@@ -1668,6 +1785,81 @@ export const ExpandedHostModal: React.FC<ExpandedHostModalProps> = ({
           setNewHashOpen(false); 
         }}
       />
+
+      {/* Modal pour ajouter une paire de credentials */}
+      {newCredentialPairOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-700 px-4 py-3">
+              <h3 className="text-slate-100 font-semibold">Ajouter une paire de credentials</h3>
+              <button 
+                className="rounded bg-slate-800 px-2 py-1 text-slate-200 hover:bg-slate-700" 
+                onClick={() => setNewCredentialPairOpen(false)}
+              >
+                ✖
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Username *</label>
+                <input
+                  type="text"
+                  value={newCredentialPair.username}
+                  onChange={(e) => setNewCredentialPair({...newCredentialPair, username: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-slate-100"
+                  placeholder="admin"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Password *</label>
+                <input
+                  type="password"
+                  value={newCredentialPair.password}
+                  onChange={(e) => setNewCredentialPair({...newCredentialPair, password: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-slate-100"
+                  placeholder="password123"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Domain (optionnel)</label>
+                <input
+                  type="text"
+                  value={newCredentialPair.domain}
+                  onChange={(e) => setNewCredentialPair({...newCredentialPair, domain: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-slate-100"
+                  placeholder="DOMAIN"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-400 mb-1">Commentaire (optionnel)</label>
+                <input
+                  type="text"
+                  value={newCredentialPair.comment}
+                  onChange={(e) => setNewCredentialPair({...newCredentialPair, comment: e.target.value})}
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-slate-100"
+                  placeholder="Credentials trouvés via..."
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-700 px-4 py-3">
+              <Button 
+                variant="outline" 
+                className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700" 
+                onClick={() => setNewCredentialPairOpen(false)}
+              >
+                Annuler
+              </Button>
+              <Button 
+                className="bg-green-600 hover:bg-green-700 text-white" 
+                onClick={handleAddCredentialPair}
+                disabled={!newCredentialPair.username || !newCredentialPair.password}
+              >
+                Ajouter
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

@@ -34,6 +34,7 @@ import { useHostStore } from '@/stores/hostStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { Host } from '@/types';
 import InfoModal from '@/components/ui/InfoModal';
+import DevelopmentModal from '@/components/ui/DevelopmentModal';
 import { ProjectDropdown } from './ProjectDropdown';
 import { ProjectStats } from './ProjectStats';
 // import InputDialog from '@/components/ui/InputDialog';
@@ -92,7 +93,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
   const [bulkPreview, setBulkPreview] = useState<{ ip: string; hostname?: string; os?: string; services?: any[]; tags?: string[] }[]>([]);
   const [statsModalOpen, setStatsModalOpen] = useState(false);
   const [statsModalType, setStatsModalType] = useState<'total' | 'active' | 'compromised' | 'critical' | 'credentials' | 'exploitation'>('total');
-  const [migrateInfoOpen, setMigrateInfoOpen] = useState(false);
+  const [killchainDevModalOpen, setKillchainDevModalOpen] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => { ensureUniqueCategoryIds(); }, [ensureUniqueCategoryIds]);
 
@@ -341,28 +342,6 @@ export const HostManager: React.FC<HostManagerProps> = () => {
     setBulkPreview(parsed);
   };
 
-  // Fonction pour migrer les hosts existants vers le projet actuel
-  const migrateExistingHosts = () => {
-    if (!currentProject) {
-      alert('Veuillez sélectionner un projet avant de migrer les hosts');
-      return;
-    }
-    
-    const allHosts = Object.values(hosts);
-    const hostsWithoutProject = allHosts.filter(host => !host.projectId);
-    
-    if (hostsWithoutProject.length === 0) {
-      alert('Aucun host sans projet trouvé');
-      return;
-    }
-    
-    if (confirm(`Migrer ${hostsWithoutProject.length} host(s) vers le projet "${currentProject.name}" ?`)) {
-      hostsWithoutProject.forEach(host => {
-        updateHost(host.id, { projectId: currentProject.id });
-      });
-      alert(`${hostsWithoutProject.length} host(s) migré(s) avec succès !`);
-    }
-  };
 
   return (
     <div className="app-layout">
@@ -405,26 +384,6 @@ export const HostManager: React.FC<HostManagerProps> = () => {
               <Upload className="w-4 h-4 mr-2" />
               Import/Export
             </Button>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                onClick={migrateExistingHosts}
-                className="bg-orange-700 border-orange-600 text-orange-200 hover:bg-orange-600"
-                title="Migrer les hosts existants vers le projet actuel"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Migrer Hosts
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMigrateInfoOpen(true)}
-                className="text-orange-400 hover:text-orange-300 hover:bg-orange-900/20 p-1"
-                title="Informations sur la migration des hosts"
-              >
-                <Info className="w-4 h-4" />
-              </Button>
-            </div>
             <Button
               variant="default"
               onClick={() => {
@@ -434,7 +393,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   os: 'Unknown',
                   status: 'active' as const,
                   priority: 'medium' as const,
-                  compromiseLevel: 'none' as const,
+                  compromiseLevel: 'no_foothold' as const,
                   category: (categories && categories[0]?.id) || '',
                   projectId: currentProject?.id,
                   usernames: [],
@@ -570,45 +529,6 @@ export const HostManager: React.FC<HostManagerProps> = () => {
         </div>
       </InfoModal>
 
-      <InfoModal open={migrateInfoOpen} onClose={() => setMigrateInfoOpen(false)} title="Migration des Hosts">
-        <div className="space-y-4">
-          <div className="p-4 bg-orange-900/20 border border-orange-700/50 rounded-lg">
-            <h4 className="text-orange-200 font-semibold mb-2 flex items-center gap-2">
-              <RefreshCw className="w-4 h-4" />
-              À quoi sert la migration ?
-            </h4>
-            <p className="text-slate-300 text-sm">
-              Cette fonctionnalité permet de déplacer des hosts existants qui n'ont pas de projet assigné vers le projet actuellement sélectionné.
-            </p>
-          </div>
-          
-          <div>
-            <h4 className="text-slate-100 font-semibold mb-2">Quand utiliser cette fonction ?</h4>
-            <ul className="list-disc ml-5 space-y-1 text-sm text-slate-300">
-              <li>Vous avez des hosts créés avant l'implémentation du système de projets</li>
-              <li>Vous voulez organiser des hosts existants dans un nouveau projet</li>
-              <li>Vous avez importé des données qui n'avaient pas de projet assigné</li>
-              <li>Vous voulez regrouper des hosts dispersés dans un projet cohérent</li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-slate-100 font-semibold mb-2">Comment ça fonctionne ?</h4>
-            <ol className="list-decimal ml-5 space-y-1 text-sm text-slate-300">
-              <li>Le système identifie tous les hosts sans <code className="bg-slate-700 px-1 rounded">projectId</code></li>
-              <li>Une confirmation vous demande si vous voulez migrer ces hosts</li>
-              <li>Si confirmé, tous les hosts identifiés sont assignés au projet actuel</li>
-              <li>Les hosts migrés apparaîtront immédiatement dans la vue du projet</li>
-            </ol>
-          </div>
-
-          <div className="p-3 bg-slate-800/50 border border-slate-600 rounded">
-            <p className="text-xs text-slate-400">
-              <strong>Note :</strong> Cette action est irréversible. Assurez-vous que le bon projet est sélectionné avant de confirmer la migration.
-            </p>
-          </div>
-        </div>
-      </InfoModal>
 
       {/* Main Content */}
       <div className="main-content">
@@ -698,7 +618,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         os: 'Unknown',
                         status: 'active' as const,
                         priority: 'medium' as const,
-                        compromiseLevel: 'none' as const,
+                        compromiseLevel: 'no_foothold' as const,
                         category: category.id,
                         projectId: currentProject?.id,
                         usernames: [],
@@ -764,7 +684,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                             os: 'Unknown',
                             status: 'active' as const,
                             priority: 'medium' as const,
-                            compromiseLevel: 'none' as const,
+                            compromiseLevel: 'no_foothold' as const,
                             category: (categories && categories[0]?.id) || '',
                             projectId: currentProject?.id,
                             usernames: [],
@@ -870,13 +790,13 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         Classique
                       </button>
                       <button
-                        onClick={() => setNetworkStyle('killchain')}
+                        onClick={() => setKillchainDevModalOpen(true)}
                         className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border hover:text-accent-foreground h-9 rounded-md px-3 ${
                           networkStyle === 'killchain' 
                             ? 'bg-indigo-600/80 border-indigo-500 text-white hover:bg-indigo-500/80' 
                             : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
                         }`}
-                        title="Vue Killchain - Combinaison des deux styles"
+                        title="Vue Killchain - En cours de développement"
                       >
                         <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
@@ -1295,7 +1215,7 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                         os: h.os || '',
                         status: 'active',
                         priority: 'medium',
-                        compromiseLevel: 'none',
+                        compromiseLevel: 'no_foothold',
                         category: bulkCategoryId || (categories[0]?.id || ''),
                         projectId: currentProject?.id,
                         usernames: [], passwords: [], hashes: [],
@@ -1352,6 +1272,14 @@ export const HostManager: React.FC<HostManagerProps> = () => {
           onUpdateHost={handleUpdateHost}
         />
       )}
+
+      {/* Modal de développement Killchain */}
+      <DevelopmentModal
+        isOpen={killchainDevModalOpen}
+        onClose={() => setKillchainDevModalOpen(false)}
+        title="Vue Killchain en développement"
+        feature="la vue Killchain"
+      />
     </div>
   );
 };
