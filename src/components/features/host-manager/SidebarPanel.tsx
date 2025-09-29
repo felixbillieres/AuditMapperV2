@@ -586,11 +586,15 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                     </CardContent>
                   </Card>
 
-                  {/* Usernames */}
+                  {/* Credentials Grid - Vertical layout */}
+                  <div className="space-y-4">
+                    {/* Usernames */}
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-slate-100 text-sm">👤 Usernames ({selectedHost.usernames?.length || 0})</CardTitle>
+                        <CardTitle className="text-slate-100 text-sm">
+                          👤 Usernames {!isExpanded && `(${selectedHost.usernames?.length || 0})`}
+                        </CardTitle>
                         <Button
                           variant="outline"
                           size="sm"
@@ -639,7 +643,9 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-slate-100 text-sm">🔑 Passwords ({selectedHost.passwords?.length || 0})</CardTitle>
+                        <CardTitle className="text-slate-100 text-sm">
+                          🔑 Passwords {!isExpanded && `(${selectedHost.passwords?.length || 0})`}
+                        </CardTitle>
                         <Button
                           variant="outline"
                           size="sm"
@@ -691,7 +697,9 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                   <Card className="border-slate-700 bg-slate-800">
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-slate-100 text-sm">🔐 Hashes ({selectedHost.hashes?.length || 0})</CardTitle>
+                        <CardTitle className="text-slate-100 text-sm">
+                          🔐 Hashes {!isExpanded && `(${selectedHost.hashes?.length || 0})`}
+                        </CardTitle>
                         <Button
                           variant="outline"
                           size="sm"
@@ -741,6 +749,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
                   host={selectedHost}
                   onUpdateHost={handleUpdateHost}
                 />
+                  </div>
                 </div>
               )}
 
@@ -983,6 +992,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
         open={newUserOpen}
         title="Ajouter un username"
         placeholder="username"
+        preserveFullscreen={true}
         onCancel={()=>{
           setNewUserOpen(false);
         }}
@@ -996,6 +1006,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
         title="Ajouter un password"
         placeholder="password"
         type="text"
+        preserveFullscreen={true}
         onCancel={()=>{
           setNewPassOpen(false);
         }}
@@ -1008,6 +1019,7 @@ export const SidebarPanel: React.FC<SidebarPanelProps> = ({
         open={newHashOpen}
         title="Ajouter un hash"
         placeholder="hash"
+        preserveFullscreen={true}
         onCancel={()=>{
           setNewHashOpen(false);
         }}

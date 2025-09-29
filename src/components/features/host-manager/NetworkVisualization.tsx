@@ -57,7 +57,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const { networkNodes, updateNetworkNode } = useHostStore();
   // Accéder au store pour mettre à jour les connexions lors des suppressions
   const { hosts: hostsMap, updateHost } = useHostStore();
-  const [showLabels, setShowLabels] = useState(externalShowLabels);
   const [graphStyle, setGraphStyle] = useState<'bloodhound'>(externalGraphStyle);
   // Supprimé: savedEdges local non persistant
   
@@ -265,10 +264,6 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   // Synchroniser les props externes
   useEffect(() => {
-    setShowLabels(externalShowLabels);
-  }, [externalShowLabels]);
-
-  useEffect(() => {
     setGraphStyle(externalGraphStyle);
   }, [externalGraphStyle]);
 
@@ -299,7 +294,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         // Nœud avec style killchain - petit cercle fixe avec emoji au centre et texte en dessous
         const nodeConfig: any = {
           id: host.id,
-          label: showLabels ? (host.hostname || host.ip) : '', // Label en dessous du cercle
+          label: externalShowLabels ? (host.hostname || host.ip) : '', // Label en dessous du cercle
           title: `
             <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; padding: 12px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border-radius: 8px; color: #f8fafc; box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
               <div style="font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 8px;">${host.hostname || 'Hôte sans nom'}</div>
@@ -628,7 +623,7 @@ const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       delete (window as any).removeAllNetworkConnections;
       delete (window as any).getNetworkConnections;
     };
-  }, [hostIdsSignature, categoriesSignature, showLabels, graphStyle]);
+  }, [hostIdsSignature, categoriesSignature, externalShowLabels, graphStyle]);
 
 
   // Mettre en surbrillance le nœud sélectionné SANS changer la vue

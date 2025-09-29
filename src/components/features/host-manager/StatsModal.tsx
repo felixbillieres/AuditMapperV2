@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Server, CheckCircle, AlertTriangle, Target, Shield, Target as ExploitationIcon } from 'lucide-react';
+import { X, Server, CheckCircle, AlertTriangle, Target, Shield, Target as ExploitationIcon, Copy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Host } from '@/types';
@@ -193,6 +193,10 @@ const HostsListView: React.FC<{ hosts: Host[]; type: string }> = ({ hosts, type 
 
 // Composant pour afficher les credentials
 const CredentialsView: React.FC<{ hosts: Host[] }> = ({ hosts }) => {
+  const [showSprayingData, setShowSprayingData] = useState(false);
+  const [sprayingData, setSprayingData] = useState('');
+  const [sprayingType, setSprayingType] = useState<'usernames' | 'passwords' | 'hashes' | 'pairs'>('pairs');
+
   const allCredentials = hosts.reduce((acc, host) => {
     const hostCredentials = {
       host: host,
@@ -206,6 +210,64 @@ const CredentialsView: React.FC<{ hosts: Host[] }> = ({ hosts }) => {
   const totalUsernames = allCredentials.reduce((sum, h) => sum + h.usernames.length, 0);
   const totalPasswords = allCredentials.reduce((sum, h) => sum + h.passwords.length, 0);
   const totalHashes = allCredentials.reduce((sum, h) => sum + h.hashes.length, 0);
+
+  // Fonction pour générer les données de spraying
+  const generateSprayingData = (type: 'usernames' | 'passwords' | 'hashes' | 'pairs') => {
+    const sprayingLines: string[] = [];
+    
+    allCredentials.forEach(hostCreds => {
+      const { usernames, passwords, hashes } = hostCreds;
+      
+      switch (type) {
+        case 'usernames':
+          usernames.forEach((username: string) => {
+            sprayingLines.push(username);
+          });
+          break;
+          
+        case 'passwords':
+          passwords.forEach((password: string) => {
+            sprayingLines.push(password);
+          });
+          break;
+          
+        case 'hashes':
+          hashes.forEach((hash: string) => {
+            sprayingLines.push(hash);
+          });
+          break;
+          
+        case 'pairs':
+          // Paires username:password
+          usernames.forEach((username: string) => {
+            passwords.forEach((password: string) => {
+              sprayingLines.push(`${username}:${password}`);
+            });
+          });
+          break;
+      }
+    });
+
+    // Supprimer les doublons
+    const uniqueLines = [...new Set(sprayingLines)];
+    
+    return uniqueLines.join('\n');
+  };
+
+  const handleSprayingClick = () => {
+    const data = generateSprayingData(sprayingType);
+    setSprayingData(data);
+    setShowSprayingData(true);
+  };
+
+  const copySprayingData = async () => {
+    try {
+      await navigator.clipboard.writeText(sprayingData);
+      // Optionnel: afficher une notification de succès
+    } catch (err) {
+      console.error('Erreur lors de la copie:', err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -230,6 +292,122 @@ const CredentialsView: React.FC<{ hosts: Host[] }> = ({ hosts }) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Options de spraying */}
+      <Card className="border-slate-700 bg-slate-800">
+        <CardHeader>
+          <CardTitle className="text-slate-100">Options de Spraying</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Sélection du type */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <Button
+                onClick={() => setSprayingType('usernames')}
+                variant={sprayingType === 'usernames' ? 'default' : 'outline'}
+                className={`${
+                  sprayingType === 'usernames' 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                Usernames ({totalUsernames})
+              </Button>
+              <Button
+                onClick={() => setSprayingType('passwords')}
+                variant={sprayingType === 'passwords' ? 'default' : 'outline'}
+                className={`${
+                  sprayingType === 'passwords' 
+                    ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
+                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                Passwords ({totalPasswords})
+              </Button>
+              <Button
+                onClick={() => setSprayingType('hashes')}
+                variant={sprayingType === 'hashes' ? 'default' : 'outline'}
+                className={`${
+                  sprayingType === 'hashes' 
+                    ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                Hashes ({totalHashes})
+              </Button>
+              <Button
+                onClick={() => setSprayingType('pairs')}
+                variant={sprayingType === 'pairs' ? 'default' : 'outline'}
+                className={`${
+                  sprayingType === 'pairs' 
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                Paires (user:pass)
+              </Button>
+            </div>
+            
+            {/* Bouton de génération */}
+            <div className="flex justify-center">
+              <Button
+                onClick={handleSprayingClick}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
+              >
+                <Zap className="w-4 h-4" />
+                Générer données de Spraying
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Affichage des données de spraying */}
+      {showSprayingData && (
+        <Card className="border-slate-700 bg-slate-800">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-slate-100">
+                Données de Spraying - {
+                  sprayingType === 'usernames' ? 'Usernames' :
+                  sprayingType === 'passwords' ? 'Passwords' :
+                  sprayingType === 'hashes' ? 'Hashes' :
+                  'Paires username:password'
+                }
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  onClick={copySprayingData}
+                  variant="outline"
+                  size="sm"
+                  className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copier
+                </Button>
+                <Button
+                  onClick={() => setShowSprayingData(false)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-slate-900 p-4 rounded-lg border border-slate-600">
+              <pre className="text-sm text-slate-200 font-mono whitespace-pre-wrap overflow-x-auto">
+                {sprayingData || 'Aucune donnée de spraying disponible'}
+              </pre>
+            </div>
+            <div className="mt-2 text-xs text-slate-400">
+              {sprayingData.split('\n').length} credentials au total
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tableau détaillé */}
       <Card className="border-slate-700 bg-slate-800">

@@ -629,6 +629,22 @@ const KillchainVisualization: React.FC<KillchainVisualizationProps> = ({
     }
   }, [selectedHost]);
 
+  // Mettre à jour les labels quand showLabels change
+  useEffect(() => {
+    if (cyRef.current) {
+      cyRef.current.nodes().forEach((node) => {
+        if (node.hasClass('killchain-node')) {
+          const host = hosts.find(h => h.id === node.id());
+          if (host) {
+            const deviceType = getDeviceType(host);
+            const newLabel = showLabels ? `${deviceType.icon}\n${host.hostname || host.ip}` : deviceType.icon;
+            node.data('label', newLabel);
+          }
+        }
+      });
+    }
+  }, [showLabels, hosts]);
+
   // Créer les éléments du menu contextuel
   const getContextMenuItems = (): ContextMenuItem[] => {
     const items: ContextMenuItem[] = [];

@@ -2,13 +2,24 @@
 
 Une suite d'outils modernes et professionnels pour les audits de sécurité et tests d'intrusion, refactorisée avec React 18, TypeScript et une architecture modulaire.
 
+## ⚠️ Avertissement Important
 
-## 🛠️ Installation et Démarrage
+**Ce tool est un side-project développé par un petit étudiant qui ne fait absolument pas de développement web à la base.** 
+
+- **Bugs possibles** : Il y a très probablement des bugs dans le code
+- **Données sensibles** : Ne pas utiliser ce tool avec des données sensibles sous peine de perte de données
+- **Engagement** : Si vous repérez un bug, je m'engage à le réparer pour rendre l'outil meilleur
+
+Merci de votre compréhension et de votre patience !
+
+
+## Installation et Démarrage
 
 ### Prérequis
 - **Node.js** 18+ 
 - **npm** ou **yarn**
 - **docker** et **docker compose**
+
 ### Installation
 
 ```bash
@@ -18,103 +29,67 @@ cd AuditMapperV2
 docker compose -f dev.docker-compose.yml build
 docker compose -f dev.docker-compose.yml up
 ```
+
 Ouvrez le navigateur sur [http://localhost:3000](http://localhost:3000)
 
-## 🎯 Fonctionnalités
+## Fonctionnalités
 
-### Host Manager (Implémenté)
-- ✅ **Gestion des hosts** - Ajout, modification, suppression
-- ✅ **Interface moderne** - Design sombre et cyberpunk
-- ✅ **Recherche et filtres** - Recherche textuelle et filtres avancés
-- ✅ **Vue grille/liste** - Deux modes d'affichage
-- ✅ **Sélection multiple** - Actions en lot
-- ✅ **Export/Import** - Formats JSON, CSV, XML
-- ✅ **Credentials** - Gestion des usernames, passwords, hashes
-- ✅ **Vulnérabilités** - Suivi des vulnérabilités par host
-- ✅ **Services** - Gestion des services découverts
-- ✅ **Screenshots** - Capture d'écrans d'exploitation
-- ✅ **Étapes d'exploitation** - Workflow structuré
-- ✅ **Statistiques** - Dashboard avec métriques
-- ✅ **Persistance locale** - Stockage IndexedDB
+### Host Manager
+- **Gestion des hosts** - Ajout, modification, suppression- 
+- **Recherche et filtres** - Recherche textuelle et filtres avancés
+- **Vue grille/liste** - Deux modes d'affichage
+- **Sélection multiple** - Actions en lot
+- **Export/Import** - Formats JSON, CSV, XML
+- **Credentials** - Gestion des usernames, passwords, hashes avec fonction de spraying
+- **Vulnérabilités** - Suivi des vulnérabilités par host
+- **Services** - Gestion des services découverts
+- **Screenshots** - Capture d'écrans d'exploitation
+- **Étapes d'exploitation** - Workflow structuré
+- **Statistiques** - Dashboard avec métriques
+- **Persistance locale** - Stockage IndexedDB
 
-### Calendar & Kanban (Implémenté)
-- ✅ **Kanban** - Colonnes personnalisables, drag & drop (SortableJS + DnD)
-- ✅ **Timers par ticket** - Start/Pause/Reset, cumul du temps
-- ✅ **Timer global** - Compte à rebours configurable (presets, pause/reprise)
-- ✅ **Pomodoro** - Sessions travail/pause avec progression circulaire
-- ✅ **To-Do & Notes** - Listes rapides, notes persistées
-- ✅ **Export timesheet** - CSV avec temps passés par ticket
+### Calendar & Kanban
+- **Kanban** - Colonnes personnalisables, drag & drop
+- **Timers par ticket** - Start/Pause/Reset, cumul du temps
+- **Timer global** - Compte à rebours configurable
+- **Pomodoro** - Sessions travail/pause avec progression circulaire
+- **To-Do & Notes** - Listes rapides, notes persistées
+- **Export timesheet** - CSV avec temps passés par ticket
 
-### Config Generator (Implémenté)
-- ✅ **Génération de configs** - Fichiers /etc/hosts, proxychains, Kerberos, etc.
-- ✅ **Templates** - Paramétrage rapide, presets
+### Config Generator
+- **Génération de configs** - Fichiers /etc/hosts, proxychains, Kerberos
+- **Templates** - Paramétrage rapide, presets
 
-### Template Generator (Implémenté)
-- ✅ **Génération Markdown** - À partir de paramètres + output Nmap
-- ✅ **Aperçu Markdown** - Rendu riche (GFM) avec mise en forme du code
-- ✅ **Téléchargement** - Export direct en `.md` et copie presse-papiers
+### Template Generator
+- **Génération Markdown** - À partir de paramètres + output Nmap
+- **Aperçu Markdown** - Rendu riche avec mise en forme du code
+- **Téléchargement** - Export direct en `.md` et copie presse-papiers
 
-### File Transfer (Implémenté)
-- ✅ **One-liners** - Génération de commandes de transfert (HTTP/SMB/FTP/PowerShell, etc.)
-- ✅ **Encodages** - Options d’encodage et variantes cross-OS
+### File Transfer
+- **One-liners** - Génération de commandes de transfert (HTTP/SMB/FTP/PowerShell)
+- **Encodages** - Options d'encodage et variantes cross-OS
 
-### Privesc Helper (Implémenté)
-- ✅ **Checklist interactive** - Techniques et suivi de progression
-- ✅ **Notes** - Ajouts de preuves et commandes
+### Privesc Helper
+- **Checklist interactive** - Techniques et suivi de progression
+- **Notes** - Ajouts de preuves et commandes
 
-### Live Report (Implémenté)
-- ✅ **Rapport en direct** - Rendu des éléments collectés, prêt pour export
-- ✅ **Sections dynamiques** - Vulns, credentials, captures
+### Live Report
+- **Rapport en direct** - Rendu des éléments collectés, prêt pour export
+- **Sections dynamiques** - Vulns, credentials, captures
 
-### Grep Master (Implémenté partiel)
-- ✅ **Parsing ciblé** - Extraction d'infos utiles depuis des outputs
+### Grep Master
+- **Parsing ciblé** - Extraction d'infos utiles depuis des outputs
 
-### Pivot Master (Implémenté partiel)
-- ✅ **Aide au pivoting** - Génération de commandes, visualisation réseau
+### Pivot Master
+- **Aide au pivoting** - Génération de commandes, visualisation réseau
 
-### ADMR – Active Directory Mindmap Renderer (Implémenté)
-- ✅ **Rendu Obsidian Canvas** - Chargement des `.canvas` en UI interactive
-- ✅ **Navigation** - Liens entre canvases, zoom/pan
-- ✅ **Markdown** - Rendu des blocs textes
-- ✅ **Crédits et sources**: merci à gr0bot et bl4ckarch pour la carte Obsidian, inspirée par `OCD mindmaps` et `The Hacker Recipes`. Source originale: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
+### ADMR – Active Directory Mindmap Renderer
+- **Rendu Obsidian Canvas** - Chargement des `.canvas` en UI interactive
+- **Navigation** - Liens entre canvases, zoom/pan
+- **Markdown** - Rendu des blocs textes
+- **Crédits et sources**: merci à gr0bot et bl4ckarch pour la carte Obsidian, inspirée par `OCD mindmaps` et `The Hacker Recipes`. Source originale: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
 
-### Fonctionnalités à Implémenter
-- 🔄 **Pivot Master** - Générateur de commandes de pivoting
-- 🔄 **Grep Master** - Parser intelligent pour outputs
-- 🔄 **Privesc Helper** - Guide d'escalade de privilèges
-- 🔄 **Config Generator** - Générateur de fichiers de config
-- 🔄 **Network Visualization** - Graphique réseau interactif
-- 🔄 **Report Generator** - Générateur de rapports
-- 🔄 **Collaboration** - Mode multi-utilisateurs
-- 🔄 **API Backend** - Synchronisation cloud
-
-## 🎨 Composants Principaux
-
-### HostManager
-Interface principale pour la gestion des hosts avec :
-- Dashboard avec statistiques
-- Recherche et filtres avancés
-- Vue grille/liste
-- Actions en lot
-- Export/Import de données
-
-### HostCard
-Carte représentant un host avec :
-- Informations principales (IP, hostname, OS)
-- Statut et niveau de compromission
-- Compteurs de credentials
-- Actions rapides (copier, modifier, supprimer)
-- Mode expansible pour plus de détails
-
-### Store (Zustand)
-Gestion d'état centralisée avec :
-- CRUD complet pour les hosts
-- Filtres et recherche
-- Sélection multiple
-- Agrégation de credentials
-- Statistiques en temps réel
-
-## 🚀 Technologies Utilisées
+## Technologies Utilisées
 
 ### Frontend
 - **React 18** - Framework principal
@@ -133,7 +108,7 @@ Gestion d'état centralisée avec :
 - **Performance optimisée** - Lazy loading, code splitting
 - **Accessibilité** - WCAG conformes
 
-## 🎨 Design System
+## Design System
 
 ### Thème Sombre Moderne
 - **Couleurs** - Vert néon (#00ff88), magenta (#ff0080), cyan (#00ffff)
@@ -147,7 +122,7 @@ Gestion d'état centralisée avec :
 - **Modal** - Overlays modernes
 - **Toast** - Notifications élégantes
 
-## 📁 Structure du Projet
+## Structure du Projet
 
 ```
 auditmapper-v2/
@@ -202,7 +177,7 @@ auditmapper-v2/
 
 
 
-## 🤝 Contribution
+## Contribution
 
 ### Guidelines
 1. **Fork** le projet
@@ -211,8 +186,8 @@ auditmapper-v2/
 git clone https://github.com/felixbillieres/AuditMapperV2.git
 cd auditmapper-v2
 npm run dev              # Lance le serveur de développement
-
 ```
+
 Ouvrez le navigateur sur [http://localhost:3000](http://localhost:3000)
 
 2. **Créer** une branche feature (`git checkout -b feature/AmazingFeature`)
@@ -226,17 +201,17 @@ Ouvrez le navigateur sur [http://localhost:3000](http://localhost:3000)
 - **Conventional Commits** - Messages de commit standardisés
 - **Tests obligatoires** - Couverture minimale 80%
 
-## 📄 Licence
+## Licence
 
 Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
-## 🙏 Remerciements
+## Remerciements
 
 - **Phreaks 2600** 
 - **Friends & Family**
 - **Amine & Evariste** — Merci pour le projet ADMR (cartes Obsidian AD). Repo: [Imp0sters/ADMR](https://github.com/Imp0sters/ADMR)
 
-## 📞 Support
+## Support
 
 - **Email** : felix.billieres@ecole2600.com
 

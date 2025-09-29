@@ -9,12 +9,11 @@ import {
   List, 
   Grid, 
   Network, 
-  Target,
   Maximize2,
   Minimize2,
   X,
   Eye,
-  RefreshCw,
+  EyeOff,
   ArrowRight,
   Info
 } from 'lucide-react';
@@ -875,44 +874,21 @@ export const HostManager: React.FC<HostManagerProps> = () => {
                   )}
                 </div>
 
-                {/* Petits boutons discrets */}
+                {/* Bouton Mode Anonyme */}
                 <div className="flex gap-1">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      const event = new CustomEvent('network-fit-to-screen');
-                      window.dispatchEvent(event);
-                    }}
-                    className="bg-slate-700/80 border-slate-500/50 text-slate-100 hover:bg-slate-600/80 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2"
-                    title="Centrer la vue"
-                  >
-                    <Target className="w-3 h-3" />
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const event = new CustomEvent('network-reset-layout');
-                      window.dispatchEvent(event);
-                    }}
-                    className="bg-slate-700/80 border-slate-500/50 text-slate-100 hover:bg-slate-600/80 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2"
-                    title="Réinitialiser"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
                     onClick={() => setShowNetworkLabels(!showNetworkLabels)}
-                    className={`border-slate-500/50 text-slate-100 hover:border-slate-400 transition-all duration-200 backdrop-blur-sm px-2 ${
-                      showNetworkLabels ? 'bg-blue-600/80 hover:bg-blue-500/80' : 'bg-slate-700/80 hover:bg-slate-600/80'
+                    className={`px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                      showNetworkLabels 
+                        ? 'bg-slate-700/80 border-slate-500/50 text-slate-100 hover:bg-slate-600/80 hover:border-slate-400' 
+                        : 'bg-red-600/80 border-red-500/50 text-white hover:bg-red-500/80 hover:border-red-400'
                     }`}
-                    title="Afficher/Masquer labels"
+                    title={showNetworkLabels ? "Activer le mode anonyme" : "Désactiver le mode anonyme"}
                   >
-                    <Eye className="w-3 h-3" />
+                    {showNetworkLabels ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+                    {showNetworkLabels ? "Mode anonyme" : "Mode normal"}
                   </Button>
 
                   <LegendButton

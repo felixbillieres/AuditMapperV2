@@ -68,7 +68,9 @@ export const GlobalNav: React.FC = () => {
             </div>
             <div className="p-6 grid md:grid-cols-2 gap-6 relative">
               <img src="/4.png" alt="easter" className="hidden md:block opacity-10 absolute -right-6 -bottom-6 w-72 h-72 pointer-events-none select-none" />
-              {sections.map((sec) => (
+              
+              {/* Sections Large Scale et Small Scale côte à côte */}
+              {sections.slice(0, 2).map((sec) => (
                 <div key={sec.title} className="bg-slate-800/60 border border-slate-700 rounded-lg p-4">
                   <div className="text-slate-300 text-sm mb-3">{sec.title}</div>
                   <div className="space-y-2">
@@ -85,6 +87,23 @@ export const GlobalNav: React.FC = () => {
                   </div>
                 </div>
               ))}
+              
+              {/* Section Tools qui prend toute la largeur */}
+              <div className="md:col-span-2 bg-slate-800/60 border border-slate-700 rounded-lg p-4">
+                <div className="text-slate-300 text-sm mb-3">{sections[2].title}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                  {sections[2].items.map((it) => (
+                    <button
+                      key={it.to}
+                      onClick={() => { navigate(it.to); setOpen(false); }}
+                      className="flex items-center gap-2 p-3 rounded hover:bg-slate-700/50 text-slate-200 border border-transparent hover:border-slate-600"
+                    >
+                      <it.icon className="w-4 h-4 text-slate-300" />
+                      <span>{it.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
